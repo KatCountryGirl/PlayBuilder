@@ -191,6 +191,16 @@
                                     <div class="choice-pills">
                                         <span class="region-pill">@selection.RecommendedLanguage</span>
                                         <span class="region-pill">@selection.RecommendedRegion</span>
+                                        @if (selection.AtlasInspection is not null)
+                                        {
+                                            <button type="button"
+                                                    class="inspect-button"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick:preventDefault="true"
+                                                    @onclick="() => InspectSelection(selection)">
+                                                Inspect
+                                            </button>
+                                        }
                                     </div>
                                 </summary>
                                 <div class="alternatives">
@@ -252,6 +262,90 @@
             </section>
         }
 
+        @if (_inspectedSelection?.AtlasInspection is { } inspection)
+        {
+            <div class="inspector-backdrop" role="presentation" @onclick="CloseInspector"></div>
+            <aside class="atlas-inspector" role="dialog" aria-modal="true" aria-labelledby="atlas-inspector-title">
+                <header class="inspector-header">
+                    <div>
+                        <p class="eyebrow">ATLAS INSPECTOR</p>
+                        <h2 id="atlas-inspector-title">@_inspectedSelection.Title</h2>
+                    </div>
+                    <button type="button" class="inspector-close" aria-label="Close inspector" @onclick="CloseInspector">×</button>
+                </header>
+
+                <section class="inspector-summary" aria-label="Atlas decision summary">
+                    <article>
+                        <span>Winning ROM</span>
+                        <strong>@inspection.WinningRom</strong>
+                    </article>
+                    <article>
+                        <span>Runner-up</span>
+                        <strong>@inspection.RunnerUp</strong>
+                    </article>
+                    <article>
+                        <span>Deciding rule</span>
+                        <strong>@inspection.DecidingRule</strong>
+                        <small>@inspection.DecidingRuleDescription</small>
+                    </article>
+                </section>
+
+                <section class="inspector-section">
+                    <div class="inspector-section-heading">
+                        <h3>Supporting rules</h3>
+                        <span>@inspection.SupportingRules.Count</span>
+                    </div>
+                    @if (inspection.SupportingRules.Count == 0)
+                    {
+                        <p class="inspector-empty">No later rules also favored the winner.</p>
+                    }
+                    else
+                    {
+                        <ul class="supporting-rule-list">
+                            @foreach (var rule in inspection.SupportingRules)
+                            {
+                                <li>@rule</li>
+                            }
+                        </ul>
+                    }
+                </section>
+
+                <section class="inspector-section">
+                    <div class="inspector-section-heading">
+                        <h3>Ordered candidates</h3>
+                        <span>@inspection.Candidates.Count</span>
+                    </div>
+                    <div class="candidate-inspection-list">
+                        @foreach (var candidate in inspection.Candidates)
+                        {
+                            <article class="candidate-inspection-card winner-@candidate.IsWinner.ToString().ToLowerInvariant() runner-@candidate.IsRunnerUp.ToString().ToLowerInvariant()">
+                                <header>
+                                    <span class="candidate-rank">#@candidate.Order</span>
+                                    <strong>@candidate.FileName</strong>
+                                    @if (candidate.IsWinner)
+                                    {
+                                        <b>Winner</b>
+                                    }
+                                    else if (candidate.IsRunnerUp)
+                                    {
+                                        <b>Runner-up</b>
+                                    }
+                                </header>
+                                <dl>
+                                    <div><dt>Region</dt><dd>@candidate.Region</dd></div>
+                                    <div><dt>Language(s)</dt><dd>@string.Join(", ", candidate.Languages)</dd></div>
+                                    <div><dt>Dump quality</dt><dd>@candidate.DumpQuality</dd></div>
+                                    <div><dt>Revision</dt><dd>@candidate.Revision</dd></div>
+                                    <div><dt>Version</dt><dd>@candidate.Version</dd></div>
+                                    <div><dt>Release type</dt><dd>@candidate.ReleaseType</dd></div>
+                                </dl>
+                            </article>
+                        }
+                    </div>
+                </section>
+            </aside>
+        }
+
         <footer class="version-label">Atlas Development Preview · v0.0.9</footer>
     }
 </main>
@@ -282,6 +376,7 @@
     private string _frontend = string.Empty;
     private bool _isSavingFavorites;
     private string _favoritesMessage = string.Empty;
+    private GameSelectionPreview? _inspectedSelection;
 
     protected override async Task OnInitializedAsync()
     {
@@ -319,7 +414,18 @@
         if (_scan is not null)
         {
             _preview = CollectionRuleService.BuildPreview(_scan, _options);
+            _inspectedSelection = null;
         }
+    }
+
+    private void InspectSelection(GameSelectionPreview selection)
+    {
+        _inspectedSelection = selection.AtlasInspection is null ? null : selection;
+    }
+
+    private void CloseInspector()
+    {
+        _inspectedSelection = null;
     }
 
     private void SetMode(OneGameOneRomMode mode)

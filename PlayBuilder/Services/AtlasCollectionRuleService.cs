@@ -48,7 +48,8 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
                 IsFallback = fallback,
                 Reason = BuildSummary(decision, options),
                 DecisionReasons = BuildDecisionReasons(decision),
-                Alternatives = decision.Candidates.Skip(1).Select(candidate => candidate.Metadata.FileName).ToList()
+                Alternatives = decision.Candidates.Skip(1).Select(candidate => candidate.Metadata.FileName).ToList(),
+                AtlasInspection = BuildInspection(decision)
             });
 
             preview.DuplicateGroupsReviewed++;
@@ -90,5 +91,79 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
             reason => $"Supporting match - {reason.Rule}: {reason.Description}"));
 
         return reasons;
+    }
+
+    private static AtlasInspectionPreview BuildInspection(AtlasDecision decision)
+    {
+        var runnerUp = decision.RunnerUp;
+        return new AtlasInspectionPreview
+        {
+            WinningRom = decision.Winner.Metadata.FileName,
+            RunnerUp = runnerUp?.Metadata.FileName ?? "No runner-up",
+            DecidingRule = decision.DecidingReason.Rule,
+            DecidingRuleDescription = decision.DecidingReason.Description,
+            SupportingRules = decision.SupportingReasons
+                .Select(reason => $"{reason.Rule}: {reason.Description}")
+                .ToList(),
+            Candidates = decision.Candidates
+                .Select((candidate, index) => BuildCandidateInspection(
+                    candidate,
+                    index + 1,
+                    ReferenceEquals(candidate, decision.Winner),
+                    runnerUp is not null && ReferenceEquals(candidate, runnerUp)))
+                .ToList()
+        };
+    }
+
+    private static AtlasCandidateInspectionPreview BuildCandidateInspection(
+        AtlasCandidate candidate,
+        int order,
+        bool isWinner,
+        bool isRunnerUp)
+    {
+        var metadata = candidate.Metadata;
+        return new AtlasCandidateInspectionPreview
+        {
+            Order = order,
+            FileName = metadata.FileName,
+            IsWinner = isWinner,
+            IsRunnerUp = isRunnerUp,
+            Region = metadata.Region,
+            Languages = metadata.Languages.Count == 0 ? ["Unknown"] : metadata.Languages.ToList(),
+            DumpQuality = GetDumpQuality(metadata),
+            Revision = metadata.Revision > 0 ? $"Rev {metadata.Revision}" : "Original",
+            Version = metadata.Version?.ToString() ?? "None",
+            ReleaseType = GetReleaseType(metadata)
+        };
+    }
+
+    private static string GetDumpQuality(FilenameMetadata metadata)
+    {
+        if (metadata.IsBadDump)
+        {
+            return "Known bad dump";
+        }
+
+        return metadata.IsVerifiedDump
+            ? "Verified good dump"
+            : "Neutral";
+    }
+
+    private static string GetReleaseType(FilenameMetadata metadata)
+    {
+        var types = new List<string>();
+        if (metadata.IsBeta) types.Add("Beta");
+        if (metadata.IsPrototype) types.Add("Prototype");
+        if (metadata.IsDemo) types.Add("Demo");
+        if (metadata.IsSample) types.Add("Sample");
+        if (metadata.IsHack) types.Add("Hack");
+        if (metadata.IsTranslation) types.Add("Translation");
+        if (metadata.IsHomebrew) types.Add("Homebrew");
+        if (metadata.IsUnlicensed) types.Add("Unlicensed");
+        if (metadata.IsPirate) types.Add("Pirate");
+
+        return types.Count == 0
+            ? "Standard retail"
+            : string.Join(", ", types);
     }
 }

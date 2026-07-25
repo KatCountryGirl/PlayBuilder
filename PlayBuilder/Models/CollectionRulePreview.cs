@@ -47,4 +47,29 @@ public sealed class GameSelectionPreview
     public bool IsFallback { get; set; }
     public List<string> DecisionReasons { get; set; } = [];
     public List<string> Alternatives { get; set; } = [];
+    public AtlasInspectionPreview? AtlasInspection { get; set; }
+}
+
+public sealed class AtlasInspectionPreview
+{
+    public string WinningRom { get; set; } = string.Empty;
+    public string RunnerUp { get; set; } = string.Empty;
+    public string DecidingRule { get; set; } = string.Empty;
+    public string DecidingRuleDescription { get; set; } = string.Empty;
+    public List<string> SupportingRules { get; set; } = [];
+    public List<AtlasCandidateInspectionPreview> Candidates { get; set; } = [];
+}
+
+public sealed class AtlasCandidateInspectionPreview
+{
+    public int Order { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public bool IsWinner { get; set; }
+    public bool IsRunnerUp { get; set; }
+    public string Region { get; set; } = "Unknown";
+    public List<string> Languages { get; set; } = [];
+    public string DumpQuality { get; set; } = "Neutral";
+    public string Revision { get; set; } = "Original";
+    public string Version { get; set; } = "None";
+    public string ReleaseType { get; set; } = "Standard retail";
 }
