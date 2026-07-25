@@ -241,6 +241,13 @@ h2 { margin: 0; font-size: clamp(1.55rem,3vw,2.15rem); }
 .profile-actions{display:flex;flex-wrap:wrap;gap:6px}.profile-actions button{min-height:32px;padding:0 10px;border:1px solid var(--pb-border);border-radius:9px;background:rgba(255,255,255,.04);color:var(--pb-text);font-size:.68rem;font-weight:850;cursor:pointer}
 .profile-actions button:hover:not(:disabled){border-color:rgba(208,173,255,.58);background:rgba(124,77,255,.13)}.profile-actions button:disabled{opacity:.45;cursor:not-allowed}
 .profile-message{margin:0;color:var(--pb-accent-soft);font-size:.7rem}
+.advanced-options{margin:0 0 14px;border:1px solid var(--pb-border);border-radius:14px;background:rgba(29,25,40,.74);overflow:hidden}
+.advanced-options>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;cursor:pointer;list-style:none}
+.advanced-options>summary::-webkit-details-marker{display:none}
+.advanced-options>summary span{font-weight:900}.advanced-options>summary small{color:var(--pb-text-muted);font-size:.7rem}
+.advanced-options[open]>summary{border-bottom:1px solid var(--pb-border)}
+.advanced-options .profile-card{margin:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.rules-advanced{margin:0}.rules-advanced .rules-panel{border:0;border-radius:0;background:transparent;box-shadow:none}
 .inspector-backdrop{position:fixed;inset:0;z-index:20;background:rgba(5,4,9,.62);backdrop-filter:blur(5px)}
 .atlas-inspector{position:fixed;z-index:21;top:24px;right:24px;bottom:24px;width:min(880px,calc(100vw - 48px));display:flex;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--pb-border);border-radius:18px;background:rgba(23,20,32,.98);box-shadow:0 28px 90px rgba(0,0,0,.45);overflow:auto}
 .inspector-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:12px;border-bottom:1px solid var(--pb-border)}

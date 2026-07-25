@@ -8,6 +8,7 @@
 - Add a legacy-versus-Atlas comparison report for migration validation.
 - Expand integration coverage with real scan-report fixtures.
 - Validate full-library 1G1R grouping after the singleton recommendation fix.
+- Keep advanced Atlas controls available without making them part of the default beginner workflow.
 
 ## Next Milestone
 
@@ -34,6 +35,7 @@
 - Connected Atlas to the live 1G1R preview.
 - Added user-visible decision explanations.
 - Fixed full-library 1G1R input so singleton title groups are recommended automatically.
+- Restored the dedicated Scan Games page and simplified the default collection-building workflow.
 - Added English-only and duplicate-group integration tests.
 
 ### Milestone 1 — Atlas Parsing Foundation (v0.2.0)
