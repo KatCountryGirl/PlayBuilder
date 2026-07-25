@@ -1,8 +1,9 @@
 @page "/scan"
 @implements IDisposable
 @inject ISettingsService SettingsService
-@inject IGameScanWorkflowService GameScanWorkflow
+@inject IGameScanSessionService ScanSession
 @inject IScanReportService ScanReportService
+@inject IFolderPickerService FolderPicker
 @inject NavigationManager Navigation
 
 <PageTitle>Scan Games · PlayBuilder</PageTitle>
@@ -17,8 +18,8 @@
         <section class="scan-hero">
             <div>
                 <p class="eyebrow">SCAN GAMES</p>
-                <h1>Find your ROMs and get ready to build.</h1>
-                <p>Choose your folders, scan your source ROM folder, then review the games PlayBuilder found. Scanning is read-only.</p>
+                <h1>Find your games and get ready to build.</h1>
+                <p>Choose your folders, scan your source Game folder, then review the games PlayBuilder found. Scanning is read-only and continues in the background.</p>
             </div>
             <a class="builder-link" href="/collection-rules">Choose Collection Type</a>
         </section>
@@ -32,13 +33,19 @@
                 </header>
 
                 <label>
-                    Source ROM folder
-                    <input value="@_archivePath" @oninput="args => _archivePath = args.Value?.ToString() ?? string.Empty" />
+                    Source Game folder
+                    <span class="path-input-row">
+                        <input value="@_archivePath" @oninput="args => _archivePath = args.Value?.ToString() ?? string.Empty" />
+                        <button type="button" class="browse-button" @onclick="BrowseSourceFolderAsync">Browse</button>
+                    </span>
                 </label>
 
                 <label>
                     Destination folder
-                    <input value="@_libraryPath" @oninput="args => _libraryPath = args.Value?.ToString() ?? string.Empty" />
+                    <span class="path-input-row">
+                        <input value="@_libraryPath" @oninput="args => _libraryPath = args.Value?.ToString() ?? string.Empty" />
+                        <button type="button" class="browse-button" @onclick="BrowseDestinationFolderAsync">Browse</button>
+                    </span>
                 </label>
 
                 <label>
@@ -49,64 +56,65 @@
                             <option value="@frontend">@frontend</option>
                         }
                     </select>
+                    <small class="field-help">Frontend controls the destination folder layout for the finished collection. Your original game files are not changed.</small>
                 </label>
 
                 <div class="scan-actions">
-                    @if (_isScanning)
+                    @if (_snapshot.IsRunning)
                     {
-                        <button type="button" class="secondary" @onclick="CancelScan">Cancel Scan</button>
+                        <button type="button" class="secondary" @onclick="ScanSession.CancelScan">Cancel Scan</button>
                     }
                     else
                     {
                         <button type="button" @onclick="StartScanAsync">
-                            @(_latestScan is null ? "Scan Games" : "Rescan")
+                            @(_snapshot.LastCompletedScan is null ? "Scan Games" : "Rescan")
                         </button>
                     }
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(_message))
+                @if (!string.IsNullOrWhiteSpace(_snapshot.Message))
                 {
-                    <p class="scan-message @(_messageIsError ? "error" : "success")">@_message</p>
+                    <p class="scan-message @(_snapshot.MessageIsError ? "error" : "success")">@_snapshot.Message</p>
                 }
             </article>
 
             <article class="scan-card progress-card">
                 <header>
                     <p class="eyebrow">PROGRESS</p>
-                    <h2>@(_isScanning ? "Scanning..." : "Ready")</h2>
-                    <p>@(_isScanning ? "PlayBuilder is reading filenames and grouping releases." : "Start a scan whenever your source ROM folder changes.")</p>
+                    <h2>@GetStatusHeading()</h2>
+                    <p>@(_snapshot.IsRunning ? "PlayBuilder is reading filenames and grouping game releases. You can leave this page and come back later." : "Start a scan whenever your source Game folder changes.")</p>
                 </header>
 
-                @if (_isScanning)
+                @if (_snapshot.IsRunning)
                 {
                     <div class="scan-progress" role="status" aria-live="polite">
-                        <strong>@_progress.RecognizedFiles.ToString("N0") ROMs found</strong>
-                        <span>@_progress.FilesChecked.ToString("N0") files checked</span>
-                        <span>@_progress.Phase</span>
-                        @if (!string.IsNullOrWhiteSpace(_progress.CurrentFile))
+                        <strong>@_snapshot.Progress.RecognizedFiles.ToString("N0") games found</strong>
+                        <span>@_snapshot.Progress.FilesChecked.ToString("N0") files checked</span>
+                        <span>@_snapshot.Progress.Phase</span>
+                        @if (!string.IsNullOrWhiteSpace(_snapshot.Progress.CurrentFile))
                         {
-                            <small>@_progress.CurrentFile</small>
+                            <small>@_snapshot.Progress.CurrentFile</small>
                         }
-                        <small>@ShortenPath(_progress.CurrentFolder)</small>
+                        <small>@ShortenPath(_snapshot.Progress.CurrentFolder)</small>
                     </div>
                 }
-                else if (_latestScan is null)
+                else if (_snapshot.LastCompletedScan is null)
                 {
                     <div class="scan-empty">No completed scan yet.</div>
                 }
                 else
                 {
                     <div class="summary-grid">
-                        <article><span>ROMs found</span><strong>@_latestScan.RecognizedFileCount.ToString("N0")</strong></article>
-                        <article><span>1G1R groups</span><strong>@_latestScan.OneGameOneRomGroups.Count.ToString("N0")</strong></article>
-                        <article><span>Single-ROM groups</span><strong>@_latestScan.OneGameOneRomGroups.Count(group => group.FileCount == 1).ToString("N0")</strong></article>
-                        <article><span>Multi-ROM groups</span><strong>@_latestScan.OneGameOneRomGroups.Count(group => group.FileCount > 1).ToString("N0")</strong></article>
-                        <article><span>Duplicate groups</span><strong>@_latestScan.DuplicateGroups.Count.ToString("N0")</strong></article>
-                        <article><span>Warnings</span><strong>@_latestScan.Warnings.Count.ToString("N0")</strong></article>
+                        <article><span>Games found</span><strong>@_snapshot.LastCompletedScan.RecognizedFileCount.ToString("N0")</strong></article>
+                        <article><span>1G1R groups</span><strong>@_snapshot.LastCompletedScan.OneGameOneRomGroups.Count.ToString("N0")</strong></article>
+                        <article><span>Single-game groups</span><strong>@_snapshot.LastCompletedScan.OneGameOneRomGroups.Count(group => group.FileCount == 1).ToString("N0")</strong></article>
+                        <article><span>Multi-game groups</span><strong>@_snapshot.LastCompletedScan.OneGameOneRomGroups.Count(group => group.FileCount > 1).ToString("N0")</strong></article>
+                        <article><span>Duplicate groups</span><strong>@_snapshot.LastCompletedScan.DuplicateGroups.Count.ToString("N0")</strong></article>
+                        <article><span>Warnings</span><strong>@_snapshot.LastCompletedScan.Warnings.Count.ToString("N0")</strong></article>
                     </div>
 
                     <p class="completed-copy">
-                        Completed @FormatLocalTime(_latestScan.CompletedAt). Your next step is choosing a collection type.
+                        Completed @FormatLocalTime(_snapshot.LastCompletedScan.CompletedAt). Your next step is choosing a collection type.
                     </p>
                 }
             </article>
@@ -115,48 +123,43 @@
 </main>
 
 @code {
-    private static readonly string[] Frontends = ["RetroBat", "ES-DE", "EmulationStation", "LaunchBox", "Batocera", "Other"];
+    private static readonly string[] Frontends = ["RetroBat", "ES-DE", "EmulationStation", "LaunchBox", "Batocera", "Generic Folder"];
 
     private bool _isLoading = true;
-    private bool _isScanning;
-    private bool _messageIsError;
-    private string _message = string.Empty;
     private string _archivePath = string.Empty;
     private string _libraryPath = string.Empty;
     private string _frontend = Frontends[0];
     private DateTimeOffset? _setupCompletedAt;
-    private ArchiveScanResult? _latestScan;
-    private CancellationTokenSource? _scanCancellation;
-    private ArchiveScanProgress _progress = new(0, 0, string.Empty, string.Empty, TimeSpan.Zero);
+    private GameScanSessionSnapshot _snapshot = GameScanSessionSnapshot.Idle();
 
     protected override async Task OnInitializedAsync()
     {
+        ScanSession.SnapshotChanged += HandleScanSnapshotChanged;
         var settings = await SettingsService.LoadAsync();
         _archivePath = settings.ArchivePath;
         _libraryPath = settings.LibraryPath;
         _frontend = string.IsNullOrWhiteSpace(settings.Frontend) ? Frontends[0] : settings.Frontend;
         _setupCompletedAt = settings.SetupCompletedAt;
-        _latestScan = await ScanReportService.LoadLatestAsync();
+        var latestScan = await ScanReportService.LoadLatestAsync();
+        _snapshot = ScanSession.Snapshot.LastCompletedScan is null && latestScan is not null
+            ? GameScanSessionSnapshot.Idle(latestScan)
+            : ScanSession.Snapshot;
         _isLoading = false;
     }
 
     private async Task StartScanAsync()
     {
-        _message = string.Empty;
-        _messageIsError = false;
-
         if (string.IsNullOrWhiteSpace(_archivePath) ||
             string.IsNullOrWhiteSpace(_libraryPath) ||
             string.IsNullOrWhiteSpace(_frontend))
         {
-            _message = "Choose a source ROM folder, destination folder, and frontend before scanning.";
-            _messageIsError = true;
+            _snapshot = _snapshot with
+            {
+                Message = "Choose a source Game folder, destination folder, and frontend before scanning.",
+                MessageIsError = true
+            };
             return;
         }
-
-        _isScanning = true;
-        _progress = new ArchiveScanProgress(0, 0, _archivePath, string.Empty, TimeSpan.Zero);
-        _scanCancellation = new CancellationTokenSource();
 
         var settings = new PlayBuilderSettings
         {
@@ -167,50 +170,46 @@
             SetupCompletedAt = _setupCompletedAt ?? DateTimeOffset.UtcNow
         };
 
-        var progress = new Progress<ArchiveScanProgress>(value =>
-        {
-            _progress = value;
-            _ = InvokeAsync(StateHasChanged);
-        });
+        await SettingsService.SaveAsync(settings);
 
-        try
+        if (!await ScanSession.StartScanAsync(settings))
         {
-            await SettingsService.SaveAsync(settings);
-            _latestScan = await GameScanWorkflow.ScanAndSaveAsync(settings, progress, _scanCancellation.Token);
-            _message = "Scan complete. You can choose a collection type next.";
-            _setupCompletedAt ??= settings.SetupCompletedAt;
+            _snapshot = ScanSession.Snapshot with
+            {
+                Message = "A scan is already running. Return to this page to watch progress or cancel it.",
+                MessageIsError = true
+            };
         }
-        catch (OperationCanceledException)
-        {
-            _message = "Scan cancelled. No game files were changed.";
-        }
-        catch (DirectoryNotFoundException)
-        {
-            _message = "The source ROM folder could not be found.";
-            _messageIsError = true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            _message = "PlayBuilder does not have permission to read the source ROM folder.";
-            _messageIsError = true;
-        }
-        catch (Exception)
-        {
-            _message = "The scan could not finish. Your game files were not changed.";
-            _messageIsError = true;
-        }
-        finally
-        {
-            _isScanning = false;
-            _scanCancellation?.Dispose();
-            _scanCancellation = null;
-        }
+
+        _setupCompletedAt ??= settings.SetupCompletedAt;
     }
 
-    private void CancelScan()
+    private async Task BrowseSourceFolderAsync()
     {
-        _scanCancellation?.Cancel();
+        var selected = await FolderPicker.PickFolderAsync("Choose the source Game folder", _archivePath);
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            _archivePath = selected;
+        }
     }
+
+    private async Task BrowseDestinationFolderAsync()
+    {
+        var selected = await FolderPicker.PickFolderAsync("Choose the destination folder", _libraryPath);
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            _libraryPath = selected;
+        }
+    }
+
+    private string GetStatusHeading() => _snapshot.Status switch
+    {
+        GameScanStatus.Running => "Scanning...",
+        GameScanStatus.Completed => "Scan complete",
+        GameScanStatus.Cancelled => "Scan cancelled",
+        GameScanStatus.Failed => "Scan needs attention",
+        _ => "Ready"
+    };
 
     private static string FormatLocalTime(DateTimeOffset value) =>
         value.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt");
@@ -227,7 +226,12 @@
 
     public void Dispose()
     {
-        _scanCancellation?.Cancel();
-        _scanCancellation?.Dispose();
+        ScanSession.SnapshotChanged -= HandleScanSnapshotChanged;
+    }
+
+    private void HandleScanSnapshotChanged()
+    {
+        _snapshot = ScanSession.Snapshot;
+        _ = InvokeAsync(StateHasChanged);
     }
 }

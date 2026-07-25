@@ -210,12 +210,12 @@
                 </div>
 
                 <section class="diagnostics-strip" aria-label="1G1R diagnostics">
-                    <article><span>Total ROMs loaded</span><strong>@_preview.Diagnostics.TotalRomsLoaded.ToString("N0")</strong></article>
+                    <article><span>Total games loaded</span><strong>@_preview.Diagnostics.TotalRomsLoaded.ToString("N0")</strong></article>
                     <article><span>Valid filenames</span><strong>@_preview.Diagnostics.ValidFilenames.ToString("N0")</strong></article>
                     <article><span>Normalized titles</span><strong>@_preview.Diagnostics.NormalizedTitles.ToString("N0")</strong></article>
                     <article><span>Unique title groups</span><strong>@_preview.Diagnostics.UniqueTitleGroups.ToString("N0")</strong></article>
-                    <article><span>Single-ROM groups</span><strong>@_preview.Diagnostics.SingleRomGroups.ToString("N0")</strong></article>
-                    <article><span>Multi-ROM groups</span><strong>@_preview.Diagnostics.MultiRomGroups.ToString("N0")</strong></article>
+                    <article><span>Single-game groups</span><strong>@_preview.Diagnostics.SingleRomGroups.ToString("N0")</strong></article>
+                    <article><span>Multi-game groups</span><strong>@_preview.Diagnostics.MultiRomGroups.ToString("N0")</strong></article>
                     <article><span>Rejected before Atlas</span><strong>@_preview.Diagnostics.GroupsRejectedBeforeAtlas.ToString("N0")</strong></article>
                     <article><span>English-only excluded</span><strong>@_preview.Diagnostics.GroupsExcludedByEnglishOnlyMode.ToString("N0")</strong></article>
                     <article><span>Final recommendations</span><strong>@_preview.Diagnostics.FinalRecommendations.ToString("N0")</strong></article>
@@ -235,7 +235,7 @@
                 <div class="summary-grid">
                     <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.Confident)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.Confident)"><span>Confident choices</span><strong>@_preview.ConfidentSelections.ToString("N0")</strong><small>Language and region identified</small></button>
                     <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.NeedsReview)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.NeedsReview)"><span>Needs review</span><strong>@_preview.FallbackSelections.ToString("N0")</strong><small>Unknown language or region</small></button>
-                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.ExtraVersions)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.ExtraVersions)"><span>Extra versions</span><strong>@_preview.AlternativesExcluded.ToString("N0")</strong><small>Alternate ROMs not selected</small></button>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.ExtraVersions)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.ExtraVersions)"><span>Extra versions</span><strong>@_preview.AlternativesExcluded.ToString("N0")</strong><small>Alternate game files not selected</small></button>
                     @if (_options.Mode == OneGameOneRomMode.EnglishOnly)
                     {
                         <article><span>No English release</span><strong>@_preview.GroupsExcludedByLanguage.ToString("N0")</strong><small>Excluded by English-only mode</small></article>
@@ -346,7 +346,7 @@
                                 <div class="alternatives">
                                     @if (selection.DecisionReasons.Count > 0)
                                     {
-                                        <p><strong>@(selection.IsFallback ? "Why this needs review:" : "Why Atlas selected this ROM:")</strong></p>
+                                        <p><strong>@(selection.IsFallback ? "Why this needs review:" : "Why Atlas selected this game file:")</strong></p>
                                         <ul>
                                             @foreach (var reason in selection.DecisionReasons)
                                             {
@@ -373,7 +373,7 @@
                     }
                     else if (ShowingAlternates && DisplayedAlternates.Count > 80)
                     {
-                        <p class="more-results">Showing the first 80 alternate ROMs of @DisplayedAlternates.Count.ToString("N0").</p>
+                        <p class="more-results">Showing the first 80 alternate game files of @DisplayedAlternates.Count.ToString("N0").</p>
                     }
                 }
             </section>
@@ -421,7 +421,7 @@
 
                 <section class="inspector-summary" aria-label="Atlas decision summary">
                     <article>
-                        <span>Winning ROM</span>
+                        <span>Winning game file</span>
                         <strong>@inspection.WinningRom</strong>
                     </article>
                     <article>

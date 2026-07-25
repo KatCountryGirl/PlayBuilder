@@ -5,7 +5,7 @@
 
 ## Product
 
-PlayBuilder is a Windows-focused ROM management application built with .NET 10, Blazor Server, C#, Entity Framework Core, and SQLite.
+PlayBuilder is a Windows-focused game-file management application built with .NET 10, Blazor Server, C#, Entity Framework Core, and SQLite.
 
 ## Roles
 

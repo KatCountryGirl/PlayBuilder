@@ -3,18 +3,23 @@
 ## [Unreleased]
 
 ### Added
+- Scans now continue in an application-level background session when users leave or refresh the Scan Games page.
+- Scan Games now has Browse buttons for the source Game folder and destination folder.
+- Library now has a wider, collapsible, resizable Systems panel plus a System filter and system-name search.
 - Collection Builder now supports real recommendation selection checkboxes with selected/excluded counts, Select All, Select None, Invert Selection, and Reset to Atlas Recommendations actions.
 - Collection Builder summary cards now filter confident choices, needs-review recommendations, and extra versions without rerunning Atlas.
 - Collection Builder now includes beginner-friendly search, language, region, selected-only, excluded-only, and needs-review filters.
 - Ask Atlas now provides page-specific practical help for every main navigation page, including Collection Builder, Scan Games, and Build Preview guidance.
 - Restored the Scan Games page at `/scan` with folder setup, frontend selection, scan progress, Rescan, and scan summary.
-- 1G1R scan groups now include every normalized title, including single-ROM titles, with compact Collection Builder diagnostics.
+- 1G1R scan groups now include every normalized title, including single-game titles, with compact Collection Builder diagnostics.
 - Atlas Profiles with JSON-backed create, rename, delete, duplicate, active-profile switching, and saved Atlas preference options.
 - Atlas Inspector in Collection Builder with read-only decision details, ordered candidates, and parsed metadata for each recommendation.
 - Atlas comparison service for side-by-side legacy-versus-Atlas migration reports without changing live Collection Builder behavior.
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- User-facing copy now uses Game or Game file instead of legacy technical wording where technical naming is not required.
+- Scan Games now explains Frontend as the destination layout choice for finished collections.
 - Build Preview creation from Collection Builder now uses the user's checked recommendation selections while leaving Atlas recommendations unchanged.
 - Collection Builder keeps collection mode, language preference, region preference, summary, recommendation list, search, and basic filters in the default view while keeping advanced Atlas controls collapsed.
 - Collection Builder now presents the simple 1G1R choices first and keeps profiles, rule switches, priority controls, and diagnostics collapsed under Advanced Options.

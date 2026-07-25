@@ -13,35 +13,35 @@ public static class AtlasHelpContent
     private static readonly AtlasHelpPage DefaultHelp = new(
         "Home",
         "Home shows your latest scan, collection health, and the safest next step.",
-        ["Use the summary cards to check scan status.", "Open Scan Games when your ROM folder changes.", "Open Collections when you are ready to review recommendations."],
+        ["Use the summary cards to check scan status.", "Open Scan Games when your Game folder changes.", "Open Collections when you are ready to review recommendations."],
         "Scan your games or choose a collection type.",
-        "Home is read-only. It never changes ROM files.",
-        ["ROM count is the number of files found.", "Duplicate groups are only titles with multiple possible copies."]);
+        "Home is read-only. It never changes game files.",
+        ["Game file count is the number of files found.", "Duplicate groups are only titles with multiple possible copies."]);
 
     private static readonly Dictionary<string, AtlasHelpPage> Pages = new(StringComparer.OrdinalIgnoreCase)
     {
         ["dashboard"] = DefaultHelp,
         ["scan"] = new(
             "Scan Games",
-            "Scan Games reads your source ROM folder and creates the title groups used by Collection Builder.",
-            ["Source folder is where your original ROMs live.", "Destination folder is where curated collections will be built later.", "Frontend tells PlayBuilder how to shape the collection.", "Scan starts a read-only filename scan.", "Rescan replaces the previous scan report with fresh results."],
+            "Scan Games reads your source Game folder and creates the title groups used by Collection Builder.",
+            ["Source folder is where your original game files live.", "Browse buttons open a Windows folder picker while keeping manual path entry available.", "Destination folder is where curated collections will be built later.", "Frontend tells PlayBuilder how your finished collection should be organized. Different frontends expect different folder names and layouts. PlayBuilder uses this choice when it builds or exports your collection. It does not change your original game files.", "RetroBat, Batocera, and other EmulationStation-style layouts use system folders expected by those frontends.", "Generic folder layout keeps output simple when no specific frontend layout is needed.", "Scan starts a read-only filename scan that continues in the background.", "Cancel Scan stops the running scan and keeps the last completed report.", "Rescan replaces the previous scan report with fresh results."],
             "Run a scan, then open Collections.",
-            "Scanning is read-only. PlayBuilder does not copy, move, rename, or delete ROMs during a scan.",
-            ["ROM count is every recognized file.", "1G1R group count is every unique title group.", "Single-ROM groups are valid and can be recommended automatically.", "Rescan is safe and updates the latest scan report."]),
+            "Scanning is read-only. PlayBuilder does not copy, move, rename, or delete game files during a scan.",
+            ["Game file count is every recognized file.", "1G1R group count is every unique title group.", "Single-game groups are valid and can be recommended automatically.", "Changing frontend affects the destination structure, not the source files.", "Rescan is safe and updates the latest scan report."]),
         ["library"] = new(
             "Library",
             "Library lets you browse the games found during the latest scan.",
-            ["Search finds titles and filenames.", "Filters narrow the list by system, region, language, and format.", "Favorite stars mark games for a Favorites collection."],
+            ["The Systems panel lets you browse one platform at a time and can be resized or collapsed.", "System, region, language, and format filters narrow the list.", "Search finds game titles, filenames, and system names.", "Duplicate release indicators show titles with more than one detected release.", "Favorite stars mark games for a Favorites collection."],
             "Favorite games or return to Collections.",
-            "Browsing and favoriting do not alter source ROM files.",
-            ["A game can appear once per scanned file.", "Unknown metadata usually means the filename did not include a clear tag."]),
+            "Browsing and favoriting do not alter source game files.",
+            ["A game can appear once per scanned file.", "The System filter and Systems panel use the same selection.", "Unknown metadata usually means the filename did not include a clear tag."]),
         ["collection-rules"] = new(
             "Collections",
-            "Collections helps you choose which ROMs belong in a curated collection.",
-            ["1G1R means one selected ROM per unique game or title group.", "All Games keeps one best playable copy of every unique game.", "English Only keeps one best English-capable copy of every unique game.", "Language priority decides preferred language before region.", "Region priority breaks ties after language.", "Needs Review means Atlas found unknown or less certain metadata.", "Extra Versions are alternate ROMs not selected as the winner.", "Checkboxes decide what will be included in Build Preview.", "Advanced rule switches are optional expert controls.", "Atlas Profiles are optional advanced presets."],
+            "Collections helps you choose which game files belong in a curated collection.",
+            ["1G1R means one selected game file per unique game or title group.", "All Games keeps one best playable copy of every unique game.", "English Only keeps one best English-capable copy of every unique game.", "Language priority decides preferred language before region.", "Region priority breaks ties after language.", "Needs Review means Atlas found unknown or less certain metadata.", "Extra Versions are alternate game files not selected as the winner.", "Checkboxes decide what will be included in Build Preview.", "Advanced rule switches are optional expert controls.", "Atlas Profiles are optional advanced presets."],
             "Review the checked recommendations, then open Build Preview.",
             "Changing checkboxes does not change Atlas recommendations. Unchecked games will not be included in the saved build collection.",
-            ["Atlas chooses by deterministic rules, not scoring.", "A ROM can win because its language, region, dump quality, revision, version, or release type is preferred.", "Unchecking a game only excludes it from your build selection."]),
+            ["Atlas chooses by deterministic rules, not scoring.", "A game file can win because its language, region, dump quality, revision, version, or release type is preferred.", "Unchecking a game only excludes it from your build selection."]),
         ["build"] = new(
             "Build Preview",
             "Build Preview shows the saved collection before any file operation is approved.",
@@ -54,14 +54,14 @@ public static class AtlasHelpContent
             "Conversion will prepare playable formats while keeping originals separate.",
             ["Choose a source.", "Choose a separate destination.", "Review conversion output before using it."],
             "Use this after a collection is reviewed.",
-            "Conversions should write to a separate destination and leave source ROMs untouched.",
-            ["Conversion is not required for every frontend.", "Original ROMs should remain protected."]),
+            "Conversions should write to a separate destination and leave source game files untouched.",
+            ["Conversion is not required for every frontend.", "Original game files should remain protected."]),
         ["downloads"] = new(
             "Downloads",
             "Downloads will manage source links that you provide.",
             ["Add sources you are allowed to use.", "Review planned files.", "Start downloads only after checking the plan."],
             "Add a source only when you have permission to access it.",
-            "PlayBuilder does not provide ROM sources or bypass access rules.",
+            "PlayBuilder does not provide game sources or bypass access rules.",
             ["Downloads are separate from scanning.", "Only use content you are permitted to access."]),
         ["metadata"] = new(
             "Metadata",
@@ -80,9 +80,9 @@ public static class AtlasHelpContent
         ["settings"] = new(
             "Settings",
             "Settings stores your folders, frontend, and archive-protection preference.",
-            ["Source folder points to original ROMs.", "Destination folder points to curated output.", "Frontend changes future collection planning.", "Archive protection keeps destructive operations away from originals."],
+            ["Source folder points to original game files.", "Destination folder points to curated output.", "Frontend changes future collection planning.", "Archive protection keeps destructive operations away from originals."],
             "Save settings, then scan games.",
-            "Saving settings does not move, rename, or delete ROM files.",
+            "Saving settings does not move, rename, or delete game files.",
             ["Changing folders affects future scans.", "Destination should be separate from the source folder."])
     };
 

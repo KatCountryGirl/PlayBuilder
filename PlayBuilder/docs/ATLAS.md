@@ -1,6 +1,6 @@
 # Atlas
 
-Atlas is PlayBuilder's deterministic, explainable ROM-selection rule engine. It is not a weighted scoring system.
+Atlas is PlayBuilder's deterministic, explainable game-file selection rule engine. It is not a weighted scoring system.
 
 ## Pipeline
 

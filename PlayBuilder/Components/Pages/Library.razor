@@ -46,36 +46,49 @@
     }
     else
     {
-        <div class="library-workspace">
+        <div class="library-workspace @(_systemsCollapsed ? "systems-collapsed" : null)" style="@WorkspaceStyle">
             <aside class="systems-panel" aria-label="Systems">
                 <div class="panel-heading">
                     <div>
                         <span class="section-kicker">BROWSE</span>
                         <h2>Systems</h2>
                     </div>
-                    <span>@_systemCounts.Count</span>
-                </div>
-
-                <button class="system-row @(_selectedSystem is null ? "active" : null)"
-                        type="button"
-                        @onclick="() => SelectSystemAsync(null)">
-                    <span class="system-icon" aria-hidden="true">▦</span>
-                    <span class="system-copy"><strong>All Systems</strong><small>Complete catalog</small></span>
-                    <b>@_totalGames.ToString("N0")</b>
-                </button>
-
-                <div class="system-list">
-                    @foreach (var system in _systemCounts)
-                    {
-                        <button class="system-row @(_selectedSystem == system.Name ? "active" : null)"
-                                type="button"
-                                @onclick="() => SelectSystemAsync(system.Name)">
-                            <span class="system-icon" aria-hidden="true">@GetSystemIcon(system.Name)</span>
-                            <span class="system-copy"><strong>@system.Name</strong><small>@GetSystemFamily(system.Name)</small></span>
-                            <b>@system.Count.ToString("N0")</b>
+                    <div class="systems-panel-tools">
+                        <span>@_systemCounts.Count</span>
+                        <button type="button" title="@(_systemsCollapsed ? "Expand systems panel" : "Collapse systems panel")" @onclick="ToggleSystemsPanel">
+                            @(_systemsCollapsed ? "›" : "‹")
                         </button>
-                    }
+                    </div>
                 </div>
+
+                @if (!_systemsCollapsed)
+                {
+                    <label class="systems-width-control">
+                        Width
+                        <input type="range" min="260" max="430" step="10" value="@_systemsPanelWidth" @oninput="ChangeSystemsPanelWidth" />
+                    </label>
+
+                    <button class="system-row @(_selectedSystem is null ? "active" : null)"
+                            type="button"
+                            @onclick="() => SelectSystemAsync(null)">
+                        <span class="system-icon" aria-hidden="true">▦</span>
+                        <span class="system-copy"><strong>All Systems</strong><small>Complete catalog</small></span>
+                        <b>@_totalGames.ToString("N0")</b>
+                    </button>
+
+                    <div class="system-list">
+                        @foreach (var system in _systemCounts)
+                        {
+                            <button class="system-row @(_selectedSystem == system.Name ? "active" : null)"
+                                    type="button"
+                                    @onclick="() => SelectSystemAsync(system.Name)">
+                                <span class="system-icon" aria-hidden="true">@GetSystemIcon(system.Name)</span>
+                                <span class="system-copy"><strong>@system.Name</strong><small>@GetSystemFamily(system.Name)</small></span>
+                                <b>@system.Count.ToString("N0")</b>
+                            </button>
+                        }
+                    </div>
+                }
             </aside>
 
             <section class="games-panel" aria-label="Game releases">
@@ -84,7 +97,7 @@
                         <span aria-hidden="true">⌕</span>
                         <input value="@_searchText"
                                @oninput="HandleSearchInput"
-                               placeholder="Search game titles…"
+                               placeholder="Search titles, filenames, or systems…"
                                aria-label="Search library" />
                         @if (!string.IsNullOrWhiteSpace(_searchText))
                         {
@@ -93,6 +106,14 @@
                     </label>
 
                     <div class="filter-row">
+                        <select value="@(_selectedSystem ?? string.Empty)" @onchange="ChangeSystemAsync" aria-label="Filter by system">
+                            <option value="">All systems</option>
+                            @foreach (var system in _systemCounts)
+                            {
+                                <option value="@system.Name">@system.Name</option>
+                            }
+                        </select>
+
                         <select value="@_selectedRegion" @onchange="ChangeRegionAsync" aria-label="Filter by region">
                             <option value="">All regions</option>
                             @foreach (var region in _regions)
@@ -302,6 +323,7 @@
 
     private bool _isLoading = true;
     private bool _isSyncingCatalog;
+    private bool _systemsCollapsed;
     private string _searchText = string.Empty;
     private string? _selectedSystem;
     private string _selectedRegion = string.Empty;
@@ -315,7 +337,11 @@
     private int _duplicateGroupCount;
     private int _firstVisible;
     private int _lastVisible;
+    private int _systemsPanelWidth = 310;
     private CancellationTokenSource? _searchDelay;
+
+    private string WorkspaceStyle =>
+        $"--systems-panel-width: {(_systemsCollapsed ? 72 : _systemsPanelWidth)}px;";
 
     protected override async Task OnInitializedAsync()
     {
@@ -447,51 +473,12 @@
 
     private IQueryable<Game> ApplyFilters(IQueryable<Game> query)
     {
-        if (!string.IsNullOrWhiteSpace(_selectedSystem))
-        {
-            query = query.Where(game =>
-                game.System == _selectedSystem);
-        }
-
-        if (!string.IsNullOrWhiteSpace(_selectedRegion))
-        {
-            query = query.Where(game =>
-                game.Region == _selectedRegion);
-        }
-
-        if (!string.IsNullOrWhiteSpace(_selectedLanguage))
-        {
-            query = query.Where(game =>
-                game.Language == _selectedLanguage);
-        }
-
-        if (!string.IsNullOrWhiteSpace(_selectedExtension))
-        {
-            query = query.Where(game =>
-                game.Extension == _selectedExtension);
-        }
-
-        if (!string.IsNullOrWhiteSpace(_searchText))
-        {
-            var searchPattern =
-                $"%{EscapeLikePattern(_searchText.Trim())}%";
-
-            query = query.Where(game =>
-                EF.Functions.Like(
-                    game.Title,
-                    searchPattern,
-                    @"\"));
-        }
-
-        return query;
-    }
-
-    private static string EscapeLikePattern(string value)
-    {
-        return value
-            .Replace(@"\", @"\\")
-            .Replace("%", @"\%")
-            .Replace("_", @"\_");
+        return LibraryGameQuery.Apply(query, new LibraryGameFilters(
+            _selectedSystem,
+            _selectedRegion,
+            _selectedLanguage,
+            _selectedExtension,
+            _searchText));
     }
 
     private bool AreAllPageGamesSelected =>
@@ -626,6 +613,14 @@
         await LoadPageAsync();
     }
 
+    private async Task ChangeSystemAsync(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString() ?? string.Empty;
+        _selectedSystem = string.IsNullOrWhiteSpace(value) ? null : value;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
     private async Task ChangeRegionAsync(ChangeEventArgs args)
     {
         _selectedRegion = args.Value?.ToString() ?? string.Empty;
@@ -673,6 +668,16 @@
     }
 
     private void OpenDashboard() => Navigation.NavigateTo("/dashboard");
+
+    private void ToggleSystemsPanel() => _systemsCollapsed = !_systemsCollapsed;
+
+    private void ChangeSystemsPanelWidth(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var width))
+        {
+            _systemsPanelWidth = Math.Clamp(width, 260, 430);
+        }
+    }
 
     private int GetDuplicateCount(string sortTitle) =>
         _duplicateCounts.TryGetValue(sortTitle, out var count) ? count : 1;

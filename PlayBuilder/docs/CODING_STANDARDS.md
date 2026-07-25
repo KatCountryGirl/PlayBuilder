@@ -32,5 +32,5 @@
 ## Testing
 
 - Parsing and rule behavior require automated tests.
-- Tests must be deterministic and must not depend on the user's ROM library.
+- Tests must be deterministic and must not depend on the user's game library.
 - Every bug fix should add a regression test when practical.

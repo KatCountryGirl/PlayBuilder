@@ -38,7 +38,7 @@ public sealed class AtlasHelpContentTests
     {
         var text = Flatten(AtlasHelpContent.Get("collection-rules"));
 
-        Assert.Contains("1G1R means one selected ROM per unique game", text);
+        Assert.Contains("1G1R means one selected game file per unique game", text);
         Assert.Contains("All Games", text);
         Assert.Contains("English Only", text);
         Assert.Contains("Language priority", text);
@@ -61,7 +61,7 @@ public sealed class AtlasHelpContentTests
         Assert.Contains("Frontend", text);
         Assert.Contains("read-only", text);
         Assert.Contains("Rescan", text);
-        Assert.Contains("ROM count", text);
+        Assert.Contains("Game file count", text);
         Assert.Contains("1G1R group count", text);
     }
 
