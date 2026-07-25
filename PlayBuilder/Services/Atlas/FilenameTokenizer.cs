@@ -37,15 +37,14 @@ public sealed class FilenameTokenizer
                 continue;
             }
 
-            FlushText(tokens, text, textStart);
-
             var closingIndex = value.IndexOf(closingCharacter, index + 1);
             if (closingIndex < 0)
             {
-                textStart = index;
                 text.Append(character);
                 continue;
             }
+
+            FlushText(tokens, text, textStart);
 
             var tag = value[(index + 1)..closingIndex].Trim();
             if (tag.Length > 0)

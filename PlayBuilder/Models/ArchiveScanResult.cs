@@ -14,6 +14,7 @@ public sealed class ArchiveScanResult
     public List<RegionScanSummary> Regions { get; set; } = [];
     public List<MetadataScanSummary> Languages { get; set; } = [];
     public List<MetadataScanSummary> SpecialTags { get; set; } = [];
+    public List<DuplicateGroupSummary> OneGameOneRomGroups { get; set; } = [];
     public List<DuplicateGroupSummary> DuplicateGroups { get; set; } = [];
     public List<MultiDiscGroupSummary> MultiDiscGroups { get; set; } = [];
     public List<string> Warnings { get; set; } = [];

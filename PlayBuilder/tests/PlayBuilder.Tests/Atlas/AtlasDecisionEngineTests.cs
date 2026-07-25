@@ -37,6 +37,44 @@ public sealed class AtlasDecisionEngineTests
     }
 
     [Fact]
+    public void Evaluate_ExplainsFirstRuleThatDeterminedWinner()
+    {
+        var decision = CreateEngine().Evaluate(
+            _factory.CreateMany(
+            [
+                "Example Game (USA) (En) (Rev 2) [!].zip",
+                "Example Game (Japan) (Ja) (Rev 1) [b].zip"
+            ]),
+            "Example Game",
+            new CollectionRuleOptions());
+
+        Assert.Equal("Example Game (USA) (En) (Rev 2) [!].zip", decision.Winner.Metadata.FileName);
+        Assert.Equal("Dump quality", decision.DecidingReason.Rule);
+        Assert.Contains(decision.SupportingReasons, reason => reason.Rule == "Language priority");
+        Assert.Contains(decision.SupportingReasons, reason => reason.Rule == "Region priority");
+        Assert.Contains(decision.SupportingReasons, reason => reason.Rule == "Revision");
+    }
+
+    [Fact]
+    public void Evaluate_DoesNotListLaterRuleAsSupportingWhenItFavorsRunnerUp()
+    {
+        var options = new CollectionRuleOptions
+        {
+            LanguagePriority = ["English", "Japanese", "Unknown"],
+            RegionPriority = ["Japan", "USA", "Unknown"]
+        };
+
+        var decision = CreateEngine().Evaluate(
+            _factory.CreateMany(["Example Game (USA) (En).zip", "Example Game (Japan) (Ja).zip"]),
+            "Example Game",
+            options);
+
+        Assert.Equal("Example Game (USA) (En).zip", decision.Winner.Metadata.FileName);
+        Assert.Equal("Language priority", decision.DecidingReason.Rule);
+        Assert.DoesNotContain(decision.SupportingReasons, reason => reason.Rule == "Region priority");
+    }
+
+    [Fact]
     public void Evaluate_UsesFilenameAsStableTieBreaker()
     {
         var decision = CreateEngine().Evaluate(

@@ -7,7 +7,7 @@ public sealed class VersionRule : IAtlasRule
 
     public AtlasRuleResult Compare(AtlasCandidate left, AtlasCandidate right, AtlasRuleContext context)
     {
-        if (!context.Options.PreferNewestRevision) return AtlasRuleResult.Tie("Version preference is disabled.");
+        if (!context.Options.PreferNewestVersion) return AtlasRuleResult.Tie("Version preference is disabled.");
         var comparison = CompareVersions(left.Metadata.Version, right.Metadata.Version);
         if (comparison == 0) return AtlasRuleResult.Tie("Version does not distinguish these candidates.");
 
