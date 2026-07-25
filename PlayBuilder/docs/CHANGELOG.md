@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
+
 ### Changed
 - Atlas explanations now identify the first deterministic rule that selected the winner before listing any supporting rule matches.
 
