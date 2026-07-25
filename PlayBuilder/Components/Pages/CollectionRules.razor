@@ -124,11 +124,6 @@
         </details>
 
         <section class="rule-layout">
-            <details class="advanced-options rules-advanced">
-                <summary>
-                    <span>Advanced Options</span>
-                    <small>Rule switches, language and region order, and diagnostics</small>
-                </summary>
             <aside class="rules-panel">
                 <section class="priority-section">
                     <p class="eyebrow">LANGUAGE PREFERENCE</p>
@@ -182,6 +177,11 @@
                     <button type="button" class="preset-button" @onclick="UseEuropeanPreset">Europe first</button>
                 </div>
 
+                <details class="advanced-options rules-advanced">
+                    <summary>
+                        <span>Advanced Options</span>
+                        <small>Rule switches and diagnostics</small>
+                    </summary>
                 <div class="toggle-list">
                     <label>
                         <input type="checkbox" checked="@IsRuleEnabled(DumpQualityRuleName)" @onchange="args => SetRuleEnabled(DumpQualityRuleName, args)" />
@@ -220,8 +220,8 @@
                     <article><span>English-only excluded</span><strong>@_preview.Diagnostics.GroupsExcludedByEnglishOnlyMode.ToString("N0")</strong></article>
                     <article><span>Final recommendations</span><strong>@_preview.Diagnostics.FinalRecommendations.ToString("N0")</strong></article>
                 </section>
+                </details>
             </aside>
-            </details>
 
             <section class="preview-panel">
                 <div class="preview-heading">
@@ -229,18 +229,61 @@
                         <p class="eyebrow">LIVE RECOMMENDATIONS · @_preview.EngineName</p>
                         <h2>What PlayBuilder would keep</h2>
                     </div>
-                    <span class="preview-count">@_preview.DuplicateGroupsReviewed.ToString("N0") groups reviewed</span>
+                    <span class="preview-count">@_review.SelectedCount.ToString("N0") selected · @_review.ExcludedCount.ToString("N0") excluded</span>
                 </div>
 
                 <div class="summary-grid">
-                    <article><span>Confident choices</span><strong>@_preview.ConfidentSelections.ToString("N0")</strong><small>Language and region identified</small></article>
-                    <article><span>Needs review</span><strong>@_preview.FallbackSelections.ToString("N0")</strong><small>Unknown language or region</small></article>
-                    <article><span>Extra versions</span><strong>@_preview.AlternativesExcluded.ToString("N0")</strong><small>Not selected for playable library</small></article>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.Confident)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.Confident)"><span>Confident choices</span><strong>@_preview.ConfidentSelections.ToString("N0")</strong><small>Language and region identified</small></button>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.NeedsReview)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.NeedsReview)"><span>Needs review</span><strong>@_preview.FallbackSelections.ToString("N0")</strong><small>Unknown language or region</small></button>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.ExtraVersions)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.ExtraVersions)"><span>Extra versions</span><strong>@_preview.AlternativesExcluded.ToString("N0")</strong><small>Alternate ROMs not selected</small></button>
                     @if (_options.Mode == OneGameOneRomMode.EnglishOnly)
                     {
                         <article><span>No English release</span><strong>@_preview.GroupsExcludedByLanguage.ToString("N0")</strong><small>Excluded by English-only mode</small></article>
                     }
                 </div>
+
+                <section class="review-controls" aria-label="Recommendation filters and selection controls">
+                    <label class="search-box">
+                        Search
+                        <input value="@_filters.SearchText" @oninput="args => _filters.SearchText = args.Value?.ToString() ?? string.Empty" placeholder="Title or filename" />
+                    </label>
+                    <label>
+                        Language
+                        <select value="@_filters.Language" @onchange="args => _filters.Language = args.Value?.ToString() ?? string.Empty">
+                            <option value="">All languages</option>
+                            @foreach (var language in AvailableLanguages)
+                            {
+                                <option value="@language">@language</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        Region
+                        <select value="@_filters.Region" @onchange="args => _filters.Region = args.Value?.ToString() ?? string.Empty">
+                            <option value="">All regions</option>
+                            @foreach (var region in AvailableRegions)
+                            {
+                                <option value="@region">@region</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="compact-check"><input type="checkbox" checked="@_filters.SelectedOnly" @onchange="args => _filters.SelectedOnly = args.Value is bool value && value" /> Selected only</label>
+                    <label class="compact-check"><input type="checkbox" checked="@_filters.ExcludedOnly" @onchange="args => _filters.ExcludedOnly = args.Value is bool value && value" /> Excluded only</label>
+                    <label class="compact-check"><input type="checkbox" checked="@_filters.NeedsReviewOnly" @onchange="args => _filters.NeedsReviewOnly = args.Value is bool value && value" /> Needs review only</label>
+                </section>
+
+                <section class="selection-actions" aria-label="Recommendation selection actions">
+                    <button type="button" @onclick="_review.SelectAll">Select All</button>
+                    <button type="button" @onclick="_review.SelectNone">Select None</button>
+                    <button type="button" @onclick="_review.InvertSelection">Invert Selection</button>
+                    <button type="button" @onclick="_review.ResetToAtlasRecommendations">Reset to Atlas Recommendations</button>
+                    <button type="button" class="primary" disabled="@(_isSavingOneGameOneRom || _review.SelectedCount == 0)" @onclick="SaveOneGameOneRomAsync">@(_isSavingOneGameOneRom ? "Saving..." : "Review Build")</button>
+                </section>
+
+                @if (!string.IsNullOrWhiteSpace(_oneGameOneRomMessage))
+                {
+                    <p class="save-message">@_oneGameOneRomMessage</p>
+                }
 
                 @if (_preview.Selections.Count == 0)
                 {
@@ -252,12 +295,34 @@
                 }
                 else
                 {
+                    @if (ShowingAlternates)
+                    {
+                        <div class="alternate-list">
+                            @foreach (var alternate in DisplayedAlternates.Take(80))
+                            {
+                                <article class="alternate-card">
+                                    <span>@alternate.Title</span>
+                                    <strong>@alternate.AlternateFilename</strong>
+                                    <small>Winner: @alternate.SelectedWinner</small>
+                                    <p>@alternate.Reason</p>
+                                    @if (alternate.Selection.AtlasInspection is not null)
+                                    {
+                                        <button type="button" class="inspect-button" @onclick="() => InspectSelection(alternate.Selection)">Inspect</button>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                    else
+                    {
                     <div class="selection-list">
-                        @foreach (var selection in _preview.Selections.Take(40))
+                        @foreach (var selection in DisplayedSelections.Take(80))
                         {
                             <details class="selection-card fallback-@selection.IsFallback.ToString().ToLowerInvariant()" @key="selection.RecommendedVariant">
                                 <summary>
-                                    <div class="selection-status" aria-hidden="true">@(selection.IsFallback ? "⚠️" : "✅")</div>
+                                    <label class="selection-status real-check" @onclick:stopPropagation="true">
+                                        <input type="checkbox" checked="@_review.IsSelected(selection)" @onchange="args => ToggleSelection(selection, args)" />
+                                    </label>
                                     <div class="selection-main">
                                         <span class="game-title">@selection.Title</span>
                                         <strong>@selection.RecommendedVariant</strong>
@@ -281,7 +346,7 @@
                                 <div class="alternatives">
                                     @if (selection.DecisionReasons.Count > 0)
                                     {
-                                        <p><strong>Why Atlas selected this ROM:</strong></p>
+                                        <p><strong>@(selection.IsFallback ? "Why this needs review:" : "Why Atlas selected this ROM:")</strong></p>
                                         <ul>
                                             @foreach (var reason in selection.DecisionReasons)
                                             {
@@ -300,10 +365,15 @@
                             </details>
                         }
                     </div>
+                    }
 
-                    @if (_preview.Selections.Count > 40)
+                    @if (!ShowingAlternates && DisplayedSelections.Count > 80)
                     {
-                        <p class="more-results">Showing the first 40 recommendations of @_preview.Selections.Count.ToString("N0").</p>
+                        <p class="more-results">Showing the first 80 matching recommendations of @DisplayedSelections.Count.ToString("N0").</p>
+                    }
+                    else if (ShowingAlternates && DisplayedAlternates.Count > 80)
+                    {
+                        <p class="more-results">Showing the first 80 alternate ROMs of @DisplayedAlternates.Count.ToString("N0").</p>
                     }
                 }
             </section>
@@ -460,15 +530,46 @@
     private int _favoriteCount;
     private string _favoritesName = "My Favorites";
     private string _favoritesDestination = string.Empty;
+    private string _libraryPath = string.Empty;
     private string _frontend = string.Empty;
     private bool _isSavingFavorites;
     private string _favoritesMessage = string.Empty;
+    private bool _isSavingOneGameOneRom;
+    private string _oneGameOneRomMessage = string.Empty;
     private GameSelectionPreview? _inspectedSelection;
+    private CollectionReviewState _review = new();
+    private CollectionReviewFilters _filters = new();
+    private CollectionReviewSummaryFilter _summaryFilter = CollectionReviewSummaryFilter.All;
+
+    private IReadOnlyList<GameSelectionPreview> DisplayedSelections =>
+        _review.Filter(_filters, _summaryFilter);
+
+    private IReadOnlyList<CollectionReviewAlternate> DisplayedAlternates =>
+        _review.GetAlternates(_filters);
+
+    private IReadOnlyList<string> AvailableLanguages =>
+        _preview.Selections
+            .Select(selection => selection.RecommendedLanguage)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private IReadOnlyList<string> AvailableRegions =>
+        _preview.Selections
+            .Select(selection => selection.RecommendedRegion)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private bool ShowingAlternates => _summaryFilter == CollectionReviewSummaryFilter.ExtraVersions;
 
     protected override async Task OnInitializedAsync()
     {
         _scan = await ScanReportService.LoadLatestAsync();
         var settings = await SettingsService.LoadAsync();
+        _libraryPath = settings.LibraryPath ?? string.Empty;
         _favoritesDestination = Path.Combine(settings.LibraryPath ?? string.Empty, "Favorites");
         _frontend = settings.Frontend;
         _favoriteCount = await Collections.GetFavoriteCountAsync();
@@ -511,9 +612,66 @@
         if (_scan is not null)
         {
             _preview = CollectionRuleService.BuildPreview(_scan, _options);
+            _review = new CollectionReviewState();
+            _review.LoadRecommendations(_preview.Selections);
             _inspectedSelection = null;
+            _summaryFilter = CollectionReviewSummaryFilter.All;
+            _filters = new CollectionReviewFilters();
         }
     }
+
+    private async Task SaveOneGameOneRomAsync()
+    {
+        _isSavingOneGameOneRom = true;
+        _oneGameOneRomMessage = string.Empty;
+
+        try
+        {
+            var selected = _review.GetSelectedFilenames();
+            if (selected.Count == 0)
+            {
+                _oneGameOneRomMessage = "Select at least one game before opening Build Preview.";
+                return;
+            }
+
+            var name = _options.Mode == OneGameOneRomMode.EnglishOnly
+                ? "1G1R - English Only"
+                : "1G1R - All Games";
+            var destination = Path.Combine(_libraryPath, name);
+            var collection = await Collections.SaveOneGameOneRomCollectionAsync(
+                name,
+                destination,
+                _frontend,
+                selected);
+
+            _oneGameOneRomMessage = $"Saved {collection.Games.Count:N0} selected games. Opening Build Preview...";
+            Navigation.NavigateTo($"/build?collection={collection.Id}");
+        }
+        catch (Exception ex)
+        {
+            _oneGameOneRomMessage = $"Could not save the collection: {ex.Message}";
+        }
+        finally
+        {
+            _isSavingOneGameOneRom = false;
+        }
+    }
+
+    private void ToggleSelection(GameSelectionPreview selection, ChangeEventArgs args)
+    {
+        var selected = args.Value is bool value && value;
+        _review.SetSelected(selection, selected);
+    }
+
+    private void ToggleSummaryFilter(CollectionReviewSummaryFilter filter)
+    {
+        _summaryFilter = _summaryFilter == filter
+            ? CollectionReviewSummaryFilter.All
+            : filter;
+    }
+
+    private string SummaryFilterClass(CollectionReviewSummaryFilter filter) =>
+        _summaryFilter == filter ? "active" : string.Empty;
 
     private void InspectSelection(GameSelectionPreview selection)
     {

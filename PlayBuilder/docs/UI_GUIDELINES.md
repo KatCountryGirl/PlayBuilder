@@ -12,6 +12,10 @@ The UI should feel friendly, understandable, and safe for users who do not know 
 - Keep primary actions visually obvious.
 - Show why Atlas selected a release and preserve alternatives for review.
 - Never present an Atlas total as an unexplained quality score.
+- Keep collection mode, language preference, region preference, summary, search, basic filters, selection controls, and build actions visible in the default Collection Builder workflow.
+- Keep Atlas profiles, rule switches, developer diagnostics, and legacy comparison tools inside collapsed Advanced Options sections.
+- Use real form controls for user choices; selected recommendations must use checkboxes rather than decorative status icons.
+- Ask Atlas help should be page-specific and explain purpose, controls, next steps, safety information, and common questions in practical language.
 - Maintain the existing PlayBuilder visual language unless a redesign is approved.
 
 ## Accessibility

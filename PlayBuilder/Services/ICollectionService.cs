@@ -17,6 +17,13 @@ public interface ICollectionService
         string frontend,
         CancellationToken cancellationToken = default);
 
+    Task<Collection> SaveOneGameOneRomCollectionAsync(
+        string name,
+        string destinationPath,
+        string frontend,
+        IEnumerable<string> selectedFilenames,
+        CancellationToken cancellationToken = default);
+
     Task<bool> ToggleFavoriteAsync(
         int gameId,
         CancellationToken cancellationToken = default);

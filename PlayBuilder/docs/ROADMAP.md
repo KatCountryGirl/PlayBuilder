@@ -9,6 +9,7 @@
 - Expand integration coverage with real scan-report fixtures.
 - Validate full-library 1G1R grouping after the singleton recommendation fix.
 - Keep advanced Atlas controls available without making them part of the default beginner workflow.
+- Improve the Collection Builder review workflow with persistent user selections, summary filtering, and page-specific Ask Atlas help.
 
 ## Next Milestone
 
@@ -36,6 +37,7 @@
 - Added user-visible decision explanations.
 - Fixed full-library 1G1R input so singleton title groups are recommended automatically.
 - Restored the dedicated Scan Games page and simplified the default collection-building workflow.
+- Added real Collection Builder selection controls, basic review filters, extra-version review, and page-specific Ask Atlas guidance.
 - Added English-only and duplicate-group integration tests.
 
 ### Milestone 1 — Atlas Parsing Foundation (v0.2.0)

@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- Collection Builder now supports real recommendation selection checkboxes with selected/excluded counts, Select All, Select None, Invert Selection, and Reset to Atlas Recommendations actions.
+- Collection Builder summary cards now filter confident choices, needs-review recommendations, and extra versions without rerunning Atlas.
+- Collection Builder now includes beginner-friendly search, language, region, selected-only, excluded-only, and needs-review filters.
+- Ask Atlas now provides page-specific practical help for every main navigation page, including Collection Builder, Scan Games, and Build Preview guidance.
 - Restored the Scan Games page at `/scan` with folder setup, frontend selection, scan progress, Rescan, and scan summary.
 - 1G1R scan groups now include every normalized title, including single-ROM titles, with compact Collection Builder diagnostics.
 - Atlas Profiles with JSON-backed create, rename, delete, duplicate, active-profile switching, and saved Atlas preference options.
@@ -11,6 +15,8 @@
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- Build Preview creation from Collection Builder now uses the user's checked recommendation selections while leaving Atlas recommendations unchanged.
+- Collection Builder keeps collection mode, language preference, region preference, summary, recommendation list, search, and basic filters in the default view while keeping advanced Atlas controls collapsed.
 - Collection Builder now presents the simple 1G1R choices first and keeps profiles, rule switches, priority controls, and diagnostics collapsed under Advanced Options.
 - Collection Builder, legacy comparison, and Atlas preview now use the full 1G1R group set while duplicate reporting remains duplicate-only.
 - Atlas explanations now identify the first deterministic rule that selected the winner before listing any supporting rule matches.
