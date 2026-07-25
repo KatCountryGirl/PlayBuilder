@@ -1,0 +1,16 @@
+PlayBuilder v0.0.9 - Atlas Library
+
+New
+- Integrated application shell with persistent navigation.
+- Polished three-pane Library workspace.
+- Live title/path/system search.
+- System, region, language, and format filters.
+- SQLite-backed paging for large collections.
+- Game details, source path, release grouping, and status indicators.
+- Atlas empty/loading/details states.
+- Archive scans now replace and populate the SQLite Library catalog.
+- Dashboard now links directly to Library.
+
+Important
+- Run Analyze Again once after installing this version. The completed scan will populate the Library database.
+- Original game files remain read-only and are never moved, renamed, converted, or deleted by this release.

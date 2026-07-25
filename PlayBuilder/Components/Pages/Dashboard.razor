@@ -1,0 +1,459 @@
+@page "/dashboard"
+@implements IDisposable
+@inject ISettingsService SettingsService
+@inject IArchiveScanner ArchiveScanner
+@inject IScanReportService ScanReportService
+@inject NavigationManager Navigation
+
+<PageTitle>Home · PlayBuilder</PageTitle>
+
+<main class="home-page">
+    @if (_isLoading)
+    {
+        <div class="home-loading">Loading PlayBuilder…</div>
+    }
+    else
+    {
+        <section class="home-intro">
+            <div>
+                <p class="home-eyebrow">COLLECTION CONTROL CENTER</p>
+                <h2>Welcome home.</h2>
+                <p>
+                    @(_latestScan is null
+                        ? "Your setup is complete. Begin with a safe, read-only scan of your original game archive."
+                        : "Your game archive has been safely analyzed. Review its current health and latest scan results below.")
+                </p>
+            </div>
+
+            <div class="home-intro-status">
+                <span class="@(_latestScan is null ? "status-symbol waiting" : "status-symbol ready")"
+                      aria-hidden="true">
+                    @(_latestScan is null ? "⌛" : "✓")
+                </span>
+
+                <span>
+                    <strong>@(_latestScan is null ? "Waiting for first scan" : "Archive analyzed")</strong>
+                    <small>Original game files remain unchanged</small>
+                </span>
+            </div>
+        </section>
+
+        <section class="home-summary-grid" aria-label="Collection summary">
+            <article class="home-summary-card">
+                <span class="summary-icon" aria-hidden="true">🎮</span>
+
+                <span class="summary-copy">
+                    <small>Game files</small>
+                    <strong>@(_latestScan?.RecognizedFileCount.ToString("N0") ?? "Not scanned")</strong>
+                    <span>Recognized game and disc files</span>
+                </span>
+            </article>
+
+            <article class="home-summary-card">
+                <span class="summary-icon" aria-hidden="true">🕹️</span>
+
+                <span class="summary-copy">
+                    <small>Systems</small>
+                    <strong>@(_latestScan?.Systems.Count.ToString("N0") ?? "—")</strong>
+                    <span>Platforms detected</span>
+                </span>
+            </article>
+
+            <article class="home-summary-card">
+                <span class="summary-icon" aria-hidden="true">🎭</span>
+
+                <span class="summary-copy">
+                    <small>Duplicate groups</small>
+                    <strong>@(_latestScan?.DuplicateGroups.Count.ToString("N0") ?? "—")</strong>
+                    <span>Possible alternate releases</span>
+                </span>
+            </article>
+
+            <article class="home-summary-card">
+                <span class="summary-icon" aria-hidden="true">💚</span>
+
+                <span class="summary-copy">
+                    <small>Collection health</small>
+                    <strong>@(_latestScan is null ? "—" : $"{_latestScan.CollectionHealthScore}%")</strong>
+                    <span>@(_latestScan is null ? "Scan required" : GetHealthLabel(_latestScan.CollectionHealthScore))</span>
+                </span>
+            </article>
+        </section>
+
+        <section class="home-workspace-grid">
+            <article class="home-panel scan-panel">
+                <header class="home-panel-header">
+                    <div>
+                        <p class="home-eyebrow">ARCHIVE SCAN</p>
+                        <h3>@(_isScanning ? "Analyzing your collection…" : "Safe game archive analysis")</h3>
+                        <p>
+                            Reads filenames and folder names only. Your game files are not opened,
+                            renamed, moved, copied, or deleted.
+                        </p>
+                    </div>
+
+                    @if (_isScanning)
+                    {
+                        <button class="home-action-button secondary"
+                                type="button"
+                                @onclick="CancelScan">
+                            Cancel Scan
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="home-action-button"
+                                type="button"
+                                @onclick="StartScan">
+                            @(_latestScan is null ? "Start First Scan" : "Scan Again")
+                        </button>
+                    }
+                </header>
+
+                @if (_isScanning)
+                {
+                    <div class="home-scan-progress"
+                         role="status"
+                         aria-live="polite">
+                        <span class="scan-pulse" aria-hidden="true">⚡</span>
+
+                        <span class="scan-progress-copy">
+                            <strong>@_progress.RecognizedFiles.ToString("N0") game files found</strong>
+                            <span class="scan-phase">@_progress.Phase</span>
+
+                            <span>
+                                @_progress.FilesChecked.ToString("N0") files checked ·
+                                @FormatRate(_progress) ·
+                                @FormatLiveDuration(_progress.Elapsed)
+                            </span>
+
+                            @if (!string.IsNullOrWhiteSpace(_progress.CurrentFile))
+                            {
+                                <small class="current-file">@_progress.CurrentFile</small>
+                            }
+
+                            <small>@ShortenPath(_progress.CurrentFolder)</small>
+                        </span>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_scanError))
+                {
+                    <div class="home-message error" role="alert">
+                        <strong>PlayBuilder couldn't complete the scan.</strong>
+                        <span>@_scanError</span>
+                    </div>
+                }
+
+                @if (_scanCancelled)
+                {
+                    <div class="home-message">
+                        <strong>Scan cancelled.</strong>
+                        <span>No files were changed. Your previous completed report is still available.</span>
+                    </div>
+                }
+            </article>
+
+            <aside class="home-panel setup-panel">
+                <header class="home-panel-header compact">
+                    <div>
+                        <p class="home-eyebrow">CURRENT SETUP</p>
+                        <h3>Library locations</h3>
+                    </div>
+                </header>
+
+                <dl class="setup-list">
+                    <div>
+                        <dt>Original game archive</dt>
+                        <dd>@_settings.ArchivePath</dd>
+                    </div>
+
+                    <div>
+                        <dt>Playable library</dt>
+                        <dd>@_settings.LibraryPath</dd>
+                    </div>
+
+                    <div>
+                        <dt>Frontend</dt>
+                        <dd>@_settings.Frontend</dd>
+                    </div>
+                </dl>
+            </aside>
+        </section>
+
+        @if (_latestScan is not null)
+        {
+            <section class="home-panel latest-panel">
+                <header class="home-panel-header">
+                    <div>
+                        <p class="home-eyebrow">LATEST SCAN</p>
+                        <h3>@_latestScan.RecognizedFileCount.ToString("N0") recognized game files</h3>
+
+                        <p>
+                            Completed @FormatLocalTime(_latestScan.CompletedAt)
+                            in @FormatDuration(_latestScan.Duration).
+                        </p>
+                    </div>
+
+                    <span class="scan-rate">@FormatCompletedRate(_latestScan)</span>
+                </header>
+
+                <div class="latest-stat-grid">
+                    <article>
+                        <small>Systems found</small>
+                        <strong>@_latestScan.Systems.Count.ToString("N0")</strong>
+                    </article>
+
+                    <article>
+                        <small>Duplicate groups</small>
+                        <strong>@_latestScan.DuplicateGroups.Count.ToString("N0")</strong>
+                    </article>
+
+                    <article>
+                        <small>Multi-disc games</small>
+                        <strong>@_latestScan.MultiDiscGroups.Count.ToString("N0")</strong>
+                    </article>
+
+                    <article>
+                        <small>Warnings</small>
+                        <strong>@_latestScan.Warnings.Count.ToString("N0")</strong>
+                    </article>
+                </div>
+
+                <div class="home-details-grid">
+                    <article class="home-detail-card">
+                        <header>
+                            <h4>Regions</h4>
+                            <span>Filename tags</span>
+                        </header>
+
+                        @if (_latestScan.Regions.Count == 0)
+                        {
+                            <p class="empty-detail">No region tags were detected.</p>
+                        }
+                        else
+                        {
+                            @foreach (var region in _latestScan.Regions.Take(8))
+                            {
+                                <div class="detail-row">
+                                    <span>@region.Region</span>
+                                    <strong>@region.FileCount.ToString("N0")</strong>
+                                </div>
+                            }
+                        }
+                    </article>
+
+                    <article class="home-detail-card">
+                        <header>
+                            <h4>File types</h4>
+                            <span>Recognized formats</span>
+                        </header>
+
+                        @if (_latestScan.FileTypes.Count == 0)
+                        {
+                            <p class="empty-detail">No recognized file types were found.</p>
+                        }
+                        else
+                        {
+                            @foreach (var fileType in _latestScan.FileTypes.Take(8))
+                            {
+                                <div class="detail-row">
+                                    <span>@fileType.Extension</span>
+                                    <strong>@fileType.FileCount.ToString("N0")</strong>
+                                </div>
+                            }
+                        }
+                    </article>
+                </div>
+
+                @if (_latestScan.Warnings.Count > 0)
+                {
+                    <details class="home-warning-panel">
+                        <summary>@_latestScan.Warnings.Count scan warning(s)</summary>
+                        <p>These locations could not be read. The rest of the scan completed normally.</p>
+
+                        <ul>
+                            @foreach (var warning in _latestScan.Warnings)
+                            {
+                                <li>@warning</li>
+                            }
+                        </ul>
+                    </details>
+                }
+            </section>
+        }
+
+        <footer class="home-version">PlayBuilder · Development Build</footer>
+    }
+</main>
+
+@code {
+    private bool _isLoading = true;
+    private bool _isScanning;
+    private bool _scanCancelled;
+    private string? _scanError;
+
+    private PlayBuilderSettings _settings = new();
+    private ArchiveScanResult? _latestScan;
+
+    private ArchiveScanProgress _progress =
+        new(0, 0, string.Empty, string.Empty, TimeSpan.Zero);
+
+    private CancellationTokenSource? _scanCancellation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await SettingsService.LoadAsync();
+
+        if (!_settings.IsConfigured)
+        {
+            Navigation.NavigateTo("/setup");
+            return;
+        }
+
+        _latestScan = await ScanReportService.LoadLatestAsync();
+        _isLoading = false;
+    }
+
+    private async Task StartScan()
+    {
+        _scanError = null;
+        _scanCancelled = false;
+        _isScanning = true;
+
+        _progress = new ArchiveScanProgress(
+            0,
+            0,
+            _settings.ArchivePath,
+            string.Empty,
+            TimeSpan.Zero);
+
+        _scanCancellation = new CancellationTokenSource();
+
+        var progress = new Progress<ArchiveScanProgress>(value =>
+        {
+            _progress = value;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            var result = await ArchiveScanner.ScanAsync(
+                _settings.ArchivePath,
+                progress,
+                _scanCancellation.Token);
+
+            await ScanReportService.SaveLatestAsync(
+                result,
+                _scanCancellation.Token);
+
+            _latestScan = result;
+        }
+        catch (OperationCanceledException)
+        {
+            _scanCancelled = true;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            _scanError =
+                "The original game archive folder could not be found. Open Settings and check the path.";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _scanError =
+                "PlayBuilder does not have permission to read the original game archive folder.";
+        }
+        catch (Exception)
+        {
+            _scanError =
+                "An unexpected error occurred while reading the game archive. Your files were not changed.";
+        }
+        finally
+        {
+            _isScanning = false;
+            _scanCancellation?.Dispose();
+            _scanCancellation = null;
+        }
+    }
+
+    private void CancelScan()
+    {
+        _scanCancellation?.Cancel();
+    }
+
+    private static string FormatRate(ArchiveScanProgress progress)
+    {
+        if (progress.Elapsed.TotalSeconds <= 0.05)
+        {
+            return "warming up";
+        }
+
+        return
+            $"{progress.FilesChecked / progress.Elapsed.TotalSeconds:N0} files/sec";
+    }
+
+    private static string FormatCompletedRate(ArchiveScanResult result)
+    {
+        if (result.Duration.TotalSeconds <= 0)
+        {
+            return "Fast filename scan";
+        }
+
+        return
+            $"{result.RecognizedFileCount / result.Duration.TotalSeconds:N0} files/sec";
+    }
+
+    private static string FormatLiveDuration(TimeSpan duration) =>
+        duration.TotalMinutes < 1
+            ? $"{duration.TotalSeconds:0.0}s"
+            : $"{duration.TotalMinutes:0.0}m";
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalSeconds < 1)
+        {
+            return "less than a second";
+        }
+
+        if (duration.TotalMinutes < 1)
+        {
+            return $"{duration.TotalSeconds:0.0} seconds";
+        }
+
+        if (duration.TotalHours < 1)
+        {
+            return $"{duration.TotalMinutes:0.#} minutes";
+        }
+
+        return $"{duration.TotalHours:0.#} hours";
+    }
+
+    private static string FormatLocalTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("MMM d, yyyy 'at' h:mm tt");
+
+    private static string GetHealthLabel(int score) => score switch
+    {
+        >= 90 => "Excellent foundation",
+        >= 75 => "Healthy collection",
+        >= 55 => "Cleanup opportunities found",
+        _ => "Ready for PlayBuilder to organize"
+    };
+
+    private static string ShortenPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "Preparing scan…";
+        }
+
+        return path.Length <= 90
+            ? path
+            : $"…{path[^87..]}";
+    }
+
+    public void Dispose()
+    {
+        _scanCancellation?.Cancel();
+        _scanCancellation?.Dispose();
+    }
+}

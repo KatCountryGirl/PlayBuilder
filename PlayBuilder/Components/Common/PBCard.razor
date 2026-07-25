@@ -1,0 +1,8 @@
+<section class="pb-card @Class">
+    @ChildContent
+</section>
+
+@code {
+    [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

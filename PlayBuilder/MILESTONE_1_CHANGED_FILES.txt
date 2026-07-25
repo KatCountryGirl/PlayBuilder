@@ -1,0 +1,35 @@
+PlayBuilder Milestone 1 — Atlas Parsing Foundation (v0.2.0)
+
+Copy the contents of this ZIP into the PlayBuilder root folder and allow Windows to replace existing files.
+
+Changed files:
+- PlayBuilder.csproj
+- Program.cs
+- Services/Atlas/AtlasCandidateFactory.cs
+- Services/Atlas/AtlasDecisionEngine.cs
+- Services/Atlas/FilenameMetadata.cs
+- Services/Atlas/FilenameMetadataParser.cs
+- Services/Atlas/LanguageRule.cs
+- Services/Atlas/RegionRule.cs
+- Services/Atlas/RevisionRule.cs
+- Services/Atlas/VersionRule.cs
+
+Added files:
+- Services/Atlas/FilenameToken.cs
+- Services/Atlas/FilenameTokenizer.cs
+- Services/Atlas/SpecialReleaseRule.cs
+- Services/Atlas/DumpQualityRule.cs
+- tests/PlayBuilder.Tests/PlayBuilder.Tests.csproj
+- tests/PlayBuilder.Tests/Atlas/FilenameTokenizerTests.cs
+- tests/PlayBuilder.Tests/Atlas/FilenameMetadataParserTests.cs
+- tests/PlayBuilder.Tests/Atlas/AtlasDecisionEngineTests.cs
+- docs/PlayBuilder_Bible.md
+- docs/ROADMAP.md
+- docs/CHANGELOG.md
+- docs/ARCHITECTURE.md
+- docs/ATLAS.md
+- docs/CODING_STANDARDS.md
+- docs/UI_GUIDELINES.md
+- docs/RELEASE_NOTES.md
+
+No files need to be deleted.

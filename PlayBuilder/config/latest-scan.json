@@ -1,0 +1,117 @@
+{
+  "ArchivePath": "R:\\data\\media\\games\\Retro Roms\\Nintendo - Super Nintendo Entertainment System (2)",
+  "StartedAt": "2026-07-22T21:46:38.0621537+00:00",
+  "CompletedAt": "2026-07-22T21:47:14.705628+00:00",
+  "RecognizedFileCount": 1746,
+  "IgnoredFileCount": 0,
+  "TotalRecognizedBytes": 0,
+  "IncludesFileSizes": false,
+  "Systems": [
+    {
+      "Name": "Nintendo - Super Nintendo Entertainment System (2)",
+      "FileCount": 1746,
+      "TotalBytes": 0
+    }
+  ],
+  "FileTypes": [
+    {
+      "Extension": ".zip",
+      "FileCount": 1746,
+      "TotalBytes": 0
+    }
+  ],
+  "Regions": [
+    {
+      "Region": "USA",
+      "FileCount": 717
+    },
+    {
+      "Region": "World",
+      "FileCount": 4
+    },
+    {
+      "Region": "Europe",
+      "FileCount": 55
+    },
+    {
+      "Region": "Japan",
+      "FileCount": 969
+    },
+    {
+      "Region": "France",
+      "FileCount": 1
+    }
+  ],
+  "Languages": [
+    {
+      "Name": "English",
+      "FileCount": 69
+    },
+    {
+      "Name": "French",
+      "FileCount": 38
+    },
+    {
+      "Name": "German",
+      "FileCount": 29
+    },
+    {
+      "Name": "Spanish",
+      "FileCount": 29
+    },
+    {
+      "Name": "Italian",
+      "FileCount": 13
+    },
+    {
+      "Name": "Swedish",
+      "FileCount": 6
+    },
+    {
+      "Name": "Japanese",
+      "FileCount": 4
+    },
+    {
+      "Name": "Portuguese",
+      "FileCount": 3
+    },
+    {
+      "Name": "Dutch",
+      "FileCount": 1
+    },
+    {
+      "Name": "Korean",
+      "FileCount": 1
+    }
+  ],
+  "SpecialTags": [
+    {
+      "Name": "Translation",
+      "FileCount": 1
+    }
+  ],
+  "DuplicateGroups": [
+    {
+      "Title": "Casper",
+      "FileCount": 2,
+      "Variants": [
+        "Casper (Japan)",
+        "Casper (USA)"
+      ]
+    },
+    {
+      "Title": "Monopoly",
+      "FileCount": 2,
+      "Variants": [
+        "Monopoly (Japan)",
+        "Monopoly (USA) (Rev 1)"
+      ]
+    }
+  ],
+  "MultiDiscGroups": [],
+  "Warnings": [],
+  "Duration": "00:00:36.6434743",
+  "DuplicateFileCount": 4,
+  "TaggedFileCount": 1,
+  "CollectionHealthScore": 100
+}

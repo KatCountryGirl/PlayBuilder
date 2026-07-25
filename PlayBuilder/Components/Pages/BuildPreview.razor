@@ -1,0 +1,543 @@
+@page "/build"
+@using PlayBuilder.Data.Entities
+@inject ICollectionService Collections
+@inject NavigationManager Navigation
+
+<PageTitle>Build Preview · PlayBuilder</PageTitle>
+
+<section class="build-page">
+    <header class="build-hero">
+        <div>
+            <p class="eyebrow">SAFE BUILD WORKSPACE</p>
+            <h1>Build Preview</h1>
+            <p>
+                Review exactly what PlayBuilder plans to include. No files are copied,
+                moved, renamed, or deleted from this page.
+            </p>
+        </div>
+
+        <div class="preview-shield" aria-hidden="true">🛡️</div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="build-state">
+            <span aria-hidden="true">🤖</span>
+            <h2>Atlas is preparing your preview</h2>
+            <p>Loading saved collections and planned game releases…</p>
+        </div>
+    }
+    else if (_collections.Count == 0)
+    {
+        <div class="build-state">
+            <span aria-hidden="true">📋</span>
+            <h2>No saved collections yet</h2>
+            <p>
+                Create a Favorites collection or configure a 1G1R collection before
+                opening Build Preview.
+            </p>
+            <button type="button" @onclick="OpenCollections">
+                Open Collections
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="build-layout">
+            <aside class="collection-list" aria-label="Saved collections">
+                <div class="collection-list-heading">
+                    <p class="eyebrow">SAVED COLLECTIONS</p>
+                    <span>@_collections.Count.ToString("N0")</span>
+                </div>
+
+                @foreach (var item in _collections)
+                {
+                    <button type="button"
+                            class="collection-row @GetCollectionActiveClass(item.Id)"
+                            disabled="@_isSaving"
+                            @onclick="() => SelectCollectionAsync(item.Id)">
+
+                        <span class="collection-icon" aria-hidden="true">
+                            @GetIcon(item.Type)
+                        </span>
+
+                        <span class="collection-copy">
+                            <strong>@item.Name</strong>
+                            <small>
+                                @item.Games.Count.ToString("N0") games ·
+                                @DisplayCollectionType(item.Type)
+                            </small>
+                        </span>
+                    </button>
+                }
+            </aside>
+
+            <main class="plan-panel">
+                @if (_selected is null)
+                {
+                    <div class="build-state embedded">
+                        <span aria-hidden="true">📋</span>
+                        <h2>Select a collection</h2>
+                        <p>Choose a saved collection to inspect its planned contents.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="plan-heading">
+                        <div>
+                            <p class="eyebrow">
+                                @DisplayCollectionType(_selected.Type).ToUpperInvariant() COLLECTION
+                            </p>
+                            <h2>@_selected.Name</h2>
+                        </div>
+
+                        <span class="plan-status">Preview only</span>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                    {
+                        <div class="build-message @(_statusIsError ? "error" : "success")"
+                             role="@(_statusIsError ? "alert" : "status")">
+                            <span aria-hidden="true">@(_statusIsError ? "⚠️" : "✓")</span>
+                            <span>@_statusMessage</span>
+                            <button type="button"
+                                    title="Dismiss message"
+                                    aria-label="Dismiss message"
+                                    @onclick="DismissStatus">
+                                ×
+                            </button>
+                        </div>
+                    }
+
+                    <div class="plan-summary">
+                        <article>
+                            <span>Games included</span>
+                            <strong>@IncludedCount.ToString("N0")</strong>
+                            <small>Saved collection members</small>
+                        </article>
+
+                        <article>
+                            <span>Games selected</span>
+                            <strong>@_selectedGameIds.Count.ToString("N0")</strong>
+                            <small>Ready for exclusion</small>
+                        </article>
+
+                        <article>
+                            <span>File changes</span>
+                            <strong>0</strong>
+                            <small>Nothing executed yet</small>
+                        </article>
+                    </div>
+
+                    <div class="plan-details">
+                        <div class="destination">
+                            <span>Destination</span>
+                            <code>@Display(_selected.DestinationPath)</code>
+                        </div>
+
+                        <div class="destination">
+                            <span>Frontend</span>
+                            <code>@Display(_selected.Frontend)</code>
+                        </div>
+                    </div>
+
+                    @if (IncludedCount == 0)
+                    {
+                        <div class="empty-plan">
+                            <span aria-hidden="true">🧩</span>
+                            <h3>This collection is empty</h3>
+                            <p>
+                                Return to Collections or the Library to add games before
+                                creating a build.
+                            </p>
+                            <button type="button" @onclick="OpenCollections">
+                                Open Collections
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="preview-actions" aria-label="Build preview selection controls">
+                            <label class="selection-toggle">
+                                <input type="checkbox"
+                                       checked="@AreAllIncludedSelected"
+                                       disabled="@_isSaving"
+                                       @onchange="ToggleAllIncludedSelection" />
+                                <span>Select all included</span>
+                            </label>
+
+                            <span class="selected-total">
+                                <strong>@_selectedGameIds.Count.ToString("N0")</strong>
+                                selected
+                            </span>
+
+                            <div class="preview-action-buttons">
+                                @if (IncludedCount > PreviewLimit &&
+                                     _selectedGameIds.Count < IncludedCount)
+                                {
+                                    <button type="button"
+                                            class="secondary"
+                                            disabled="@_isSaving"
+                                            @onclick="SelectAllIncluded">
+                                        Select all @IncludedCount.ToString("N0")
+                                    </button>
+                                }
+
+                                <button type="button"
+                                        class="secondary"
+                                        disabled="@(_isSaving || DisplayedGames.Count == 0)"
+                                        @onclick="SelectDisplayed">
+                                    Select shown
+                                </button>
+
+                                <button type="button"
+                                        class="secondary"
+                                        disabled="@(_isSaving || _selectedGameIds.Count == 0)"
+                                        @onclick="ClearSelection">
+                                    Clear
+                                </button>
+
+                                <button type="button"
+                                        class="exclude-action"
+                                        disabled="@(_isSaving || _selectedGameIds.Count == 0)"
+                                        @onclick="ExcludeSelectedAsync">
+                                    @if (_isSaving)
+                                    {
+                                        <span>Saving…</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Exclude selected</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="plan-table" role="table" aria-label="Planned games">
+                            <div class="plan-row header" role="row">
+                                <span class="checkbox-column" aria-hidden="true"></span>
+                                <span>Game</span>
+                                <span>System</span>
+                                <span>Region</span>
+                                <span>Action</span>
+                            </div>
+
+                            @foreach (var item in DisplayedGames)
+                            {
+                                var game = item.Game;
+                                var isSelected = _selectedGameIds.Contains(item.GameId);
+
+                                <div class="plan-row @(isSelected ? "selected" : null)"
+                                     role="row">
+
+                                    <label class="game-checkbox"
+                                           title="Select @game.Title">
+                                        <input type="checkbox"
+                                               checked="@isSelected"
+                                               disabled="@_isSaving"
+                                               @onchange="args => ToggleGameSelection(item.GameId, args)" />
+                                    </label>
+
+                                    <span class="game-info">
+                                        <strong>@game.Title</strong>
+                                        <small title="@game.RelativePath">
+                                            @DisplayPath(game.RelativePath)
+                                        </small>
+                                    </span>
+
+                                    <span>@Display(game.System)</span>
+
+                                    <span>
+                                        <span class="region-pill">
+                                            @Display(game.Region)
+                                        </span>
+                                    </span>
+
+                                    <span class="include-action">+ Include</span>
+                                </div>
+                            }
+                        </div>
+
+                        @if (IncludedCount > PreviewLimit)
+                        {
+                            <p class="more-note">
+                                Showing the first @PreviewLimit.ToString("N0") of
+                                @IncludedCount.ToString("N0") planned games.
+                                “Select all included” still selects the entire collection.
+                            </p>
+                        }
+                    }
+
+                    <footer class="approval-bar">
+                        <span>
+                            <strong>Plan → Preview → Approve → Execute</strong>
+                            <small>
+                                Exclusions update this saved collection. No game files are
+                                changed or deleted.
+                            </small>
+                        </span>
+
+                        <button type="button"
+                                disabled
+                                title="Execution will be enabled in a later milestone">
+                            Approve &amp; Build
+                        </button>
+                    </footer>
+                }
+            </main>
+        </div>
+    }
+</section>
+
+@code {
+    private const int PreviewLimit = 200;
+
+    [SupplyParameterFromQuery(Name = "collection")]
+    public int? CollectionId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _statusIsError;
+
+    private IReadOnlyList<Collection> _collections = [];
+    private Collection? _selected;
+
+    private readonly HashSet<int> _selectedGameIds = [];
+
+    private string? _statusMessage;
+
+    private int IncludedCount => _selected?.Games.Count ?? 0;
+
+    private List<CollectionGame> DisplayedGames =>
+        _selected?.Games
+            .Where(item => item.Game is not null)
+            .OrderBy(item => item.Game.Title, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Game.System, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Game.Region, StringComparer.OrdinalIgnoreCase)
+            .Take(PreviewLimit)
+            .ToList()
+        ?? [];
+
+    private bool AreAllIncludedSelected =>
+        IncludedCount > 0 &&
+        _selected is not null &&
+        _selected.Games.All(item => _selectedGameIds.Contains(item.GameId));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            await LoadCollectionsAsync();
+
+            var requestedId = CollectionId;
+            var selectedId = requestedId.HasValue &&
+                             _collections.Any(item => item.Id == requestedId.Value)
+                ? requestedId.Value
+                : _collections.FirstOrDefault()?.Id;
+
+            if (selectedId.HasValue)
+            {
+                await LoadSelectedCollectionAsync(selectedId.Value);
+            }
+            else
+            {
+                _selected = null;
+                _selectedGameIds.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            _statusIsError = true;
+            _statusMessage = $"Build Preview could not be loaded: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        _collections = await Collections.GetCollectionsAsync();
+    }
+
+    private async Task LoadSelectedCollectionAsync(int id)
+    {
+        _selected = await Collections.GetCollectionAsync(id);
+        _selectedGameIds.Clear();
+    }
+
+    private async Task SelectCollectionAsync(int id)
+    {
+        if (_isSaving || _selected?.Id == id)
+        {
+            return;
+        }
+
+        _statusMessage = null;
+        _statusIsError = false;
+
+        await LoadSelectedCollectionAsync(id);
+
+        CollectionId = id;
+        Navigation.NavigateTo(
+            $"/build?collection={id}",
+            replace: true);
+    }
+
+    private void ToggleGameSelection(int gameId, ChangeEventArgs args)
+    {
+        var isSelected = args.Value is bool value && value;
+
+        if (isSelected)
+        {
+            _selectedGameIds.Add(gameId);
+        }
+        else
+        {
+            _selectedGameIds.Remove(gameId);
+        }
+    }
+
+    private void ToggleAllIncludedSelection(ChangeEventArgs args)
+    {
+        var shouldSelect = args.Value is bool value && value;
+
+        if (shouldSelect)
+        {
+            SelectAllIncluded();
+        }
+        else
+        {
+            ClearSelection();
+        }
+    }
+
+    private void SelectAllIncluded()
+    {
+        if (_selected is null)
+        {
+            return;
+        }
+
+        _selectedGameIds.Clear();
+
+        foreach (var item in _selected.Games)
+        {
+            _selectedGameIds.Add(item.GameId);
+        }
+    }
+
+    private void SelectDisplayed()
+    {
+        foreach (var item in DisplayedGames)
+        {
+            _selectedGameIds.Add(item.GameId);
+        }
+    }
+
+    private void ClearSelection()
+    {
+        _selectedGameIds.Clear();
+    }
+
+    private async Task ExcludeSelectedAsync()
+    {
+        if (_selected is null ||
+            _isSaving ||
+            _selectedGameIds.Count == 0)
+        {
+            return;
+        }
+
+        var collectionId = _selected.Id;
+        var selectedIds = _selectedGameIds.ToArray();
+        var selectedCount = selectedIds.Length;
+
+        _isSaving = true;
+        _statusMessage = null;
+        _statusIsError = false;
+
+        try
+        {
+            var removedCount = await Collections.RemoveGamesAsync(
+                collectionId,
+                selectedIds);
+
+            await LoadCollectionsAsync();
+            await LoadSelectedCollectionAsync(collectionId);
+
+            _statusMessage = removedCount switch
+            {
+                0 => "No games were removed. The collection may already have changed.",
+                1 => "1 game was excluded from this collection.",
+                _ => $"{removedCount:N0} games were excluded from this collection."
+            };
+
+            _statusIsError = false;
+        }
+        catch (Exception ex)
+        {
+            _statusIsError = true;
+            _statusMessage =
+                $"PlayBuilder could not exclude the {selectedCount:N0} selected games: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void DismissStatus()
+    {
+        _statusMessage = null;
+        _statusIsError = false;
+    }
+
+    private void OpenCollections()
+    {
+        Navigation.NavigateTo("/collection-rules");
+    }
+
+    private string GetCollectionActiveClass(int id)
+    {
+        return _selected?.Id == id ? "active" : string.Empty;
+    }
+
+    private static string GetIcon(string? type)
+    {
+        return type?.ToLowerInvariant() switch
+        {
+            "favorites" => "⭐",
+            "1g1r" => "🏆",
+            _ => "🧩"
+        };
+    }
+
+    private static string DisplayCollectionType(string? type)
+    {
+        return type?.ToLowerInvariant() switch
+        {
+            "favorites" => "Favorites",
+            "1g1r" => "1G1R",
+            null or "" => "Custom",
+            _ => type
+        };
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not set"
+            : value;
+    }
+
+    private static string DisplayPath(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "No relative path recorded"
+            : value;
+    }
+}

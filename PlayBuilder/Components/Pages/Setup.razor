@@ -1,0 +1,59 @@
+@page "/setup"
+@inject NavigationManager Navigation
+
+<PageTitle>Welcome to PlayBuilder</PageTitle>
+
+<main class="welcome-page">
+
+    <section class="hero">
+        <div class="hero-icon">🎮</div>
+
+        <p class="eyebrow">WELCOME TO</p>
+
+        <h1>PlayBuilder</h1>
+
+        <p class="hero-text">
+            Build clean, organized game collections without touching your original archive.
+        </p>
+    </section>
+
+    <section class="setup-panel">
+
+        <div class="setup-icon" aria-hidden="true">🧭</div>
+
+        <div class="setup-content">
+            <h2>Let’s set up PlayBuilder</h2>
+
+            <p>
+                This short walkthrough will help you choose your original game archive,
+                playable library, and preferred frontend.
+            </p>
+
+            <ul>
+                <li>Your original files stay protected</li>
+                <li>Nothing is moved or deleted during setup</li>
+                <li>You can change these settings later</li>
+            </ul>
+
+            <button class="primary-action"
+                    type="button"
+                    @onclick="StartGuidedSetup">
+                Start Guided Setup
+                <span aria-hidden="true">→</span>
+            </button>
+        </div>
+
+    </section>
+
+    <p class="safety-footer">
+        Cleanup, file moving, and quarantine tools will be available inside PlayBuilder after setup.
+    </p>
+
+</main>
+
+@code {
+    private void StartGuidedSetup()
+    {
+        Navigation.NavigateTo("/setup/guided");
+    }
+}

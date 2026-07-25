@@ -1,0 +1,223 @@
+@page "/setup/guided"
+@inject ISettingsService SettingsService
+@inject NavigationManager Navigation
+
+<PageTitle>Welcome to PlayBuilder</PageTitle>
+
+<main class="setup-page">
+    <header class="setup-header">
+        <a class="brand" href="/" aria-label="Return to PlayBuilder home">
+            <span aria-hidden="true">🎮</span>
+            <strong>PlayBuilder</strong>
+        </a>
+        <span class="step-label">Step @CurrentStep of 4</span>
+    </header>
+
+    <div class="progress-track" aria-label="Setup progress">
+        @for (var step = 1; step <= 4; step++)
+        {
+            <span class="progress-segment @(step <= CurrentStep ? "active" : null)"></span>
+        }
+    </div>
+
+    <PBCard Class="setup-card">
+        @if (_isLoading)
+        {
+            <div class="loading-state">
+                <div class="step-icon" aria-hidden="true">🎮</div>
+                <h1>Loading your setup…</h1>
+            </div>
+        }
+        else
+        {
+            @switch (CurrentStep)
+            {
+                case 1:
+                    <div class="step-icon" aria-hidden="true">📚</div>
+                    <p class="eyebrow">YOUR ORIGINAL COLLECTION</p>
+                    <h1>Where are your games stored?</h1>
+                    <p class="intro">
+                        Enter the folder containing your master game archive. PlayBuilder will scan it without changing or deleting your original files.
+                    </p>
+
+                    <label for="archive-path">Game collection folder</label>
+                    <input id="archive-path"
+                           class="path-input"
+                           @bind="ArchivePath"
+                           placeholder="Example: /games or /mnt/user/data/games" />
+
+                    <div class="safety-note">
+                        <span aria-hidden="true">🛡️</span>
+                        <div>
+                            <strong>Your archive stays protected</strong>
+                            <p>PlayBuilder reads this folder and creates playable collections somewhere else.</p>
+                        </div>
+                    </div>
+                    break;
+
+                case 2:
+                    <div class="step-icon" aria-hidden="true">✨</div>
+                    <p class="eyebrow">YOUR PLAYABLE LIBRARY</p>
+                    <h1>Where should PlayBuilder build?</h1>
+                    <p class="intro">
+                        This separate folder will contain the clean collection you connect to RetroBat, ES-DE, or another frontend.
+                    </p>
+
+                    <label for="library-path">Playable library folder</label>
+                    <input id="library-path"
+                           class="path-input"
+                           @bind="LibraryPath"
+                           placeholder="Example: /playable-library" />
+                    break;
+
+                case 3:
+                    <div class="step-icon" aria-hidden="true">🕹️</div>
+                    <p class="eyebrow">HOW YOU PLAY</p>
+                    <h1>Choose your game frontend</h1>
+                    <p class="intro">PlayBuilder will organize the new library to work naturally with your preferred frontend.</p>
+
+                    <div class="frontend-grid">
+                        @foreach (var frontend in Frontends)
+                        {
+                            <button class="frontend-choice @(Frontend == frontend ? "selected" : null)"
+                                    type="button"
+                                    @onclick="() => Frontend = frontend">
+                                <span class="frontend-icon" aria-hidden="true">@GetFrontendIcon(frontend)</span>
+                                <strong>@frontend</strong>
+                            </button>
+                        }
+                    </div>
+                    break;
+
+                default:
+                    <div class="step-icon" aria-hidden="true">✅</div>
+                    <p class="eyebrow">READY TO BEGIN</p>
+                    <h1>Your setup looks good</h1>
+                    <p class="intro">Review these choices. Saving them will not copy, move, or delete any game files.</p>
+
+                    <dl class="summary-list">
+                        <div><dt>Original collection</dt><dd>@DisplayValue(ArchivePath)</dd></div>
+                        <div><dt>Playable library</dt><dd>@DisplayValue(LibraryPath)</dd></div>
+                        <div><dt>Frontend</dt><dd>@Frontend</dd></div>
+                        <div><dt>Archive protection</dt><dd>Always on</dd></div>
+                    </dl>
+                    break;
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_saveError))
+            {
+                <p class="save-error" role="alert">@_saveError</p>
+            }
+
+            <footer class="wizard-actions">
+                @if (CurrentStep > 1)
+                {
+                    <PBButton Variant="Secondary" OnClick="PreviousStep" Disabled="@_isSaving">Back</PBButton>
+                }
+                else
+                {
+                    <span></span>
+                }
+
+                @if (CurrentStep < 4)
+                {
+                    <PBButton OnClick="NextStep" Disabled="@(IsNextDisabled || _isSaving)">Next</PBButton>
+                }
+                else
+                {
+                    <PBButton OnClick="FinishSetup" Disabled="@_isSaving">
+                        @(_isSaving ? "Saving…" : "Save & Open Dashboard")
+                    </PBButton>
+                }
+            </footer>
+        }
+    </PBCard>
+</main>
+
+@code {
+    private int CurrentStep { get; set; } = 1;
+    private string ArchivePath { get; set; } = string.Empty;
+    private string LibraryPath { get; set; } = string.Empty;
+    private string Frontend { get; set; } = "RetroBat";
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _saveError;
+
+    private static readonly string[] Frontends = ["RetroBat", "ES-DE", "LaunchBox", "Pegasus"];
+
+    private bool IsNextDisabled => CurrentStep switch
+    {
+        1 => string.IsNullOrWhiteSpace(ArchivePath),
+        2 => string.IsNullOrWhiteSpace(LibraryPath),
+        _ => false
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await SettingsService.LoadAsync();
+        ArchivePath = settings.ArchivePath;
+        LibraryPath = settings.LibraryPath;
+        Frontend = string.IsNullOrWhiteSpace(settings.Frontend) ? "RetroBat" : settings.Frontend;
+        _isLoading = false;
+    }
+
+    private void NextStep()
+    {
+        _saveError = null;
+
+        if (!IsNextDisabled && CurrentStep < 4)
+        {
+            CurrentStep++;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        _saveError = null;
+
+        if (CurrentStep > 1)
+        {
+            CurrentStep--;
+        }
+    }
+
+    private async Task FinishSetup()
+    {
+        _saveError = null;
+        _isSaving = true;
+
+        try
+        {
+            var settings = new PlayBuilderSettings
+            {
+                ArchivePath = ArchivePath.Trim(),
+                LibraryPath = LibraryPath.Trim(),
+                Frontend = Frontend,
+                ProtectArchive = true,
+                SetupCompletedAt = DateTimeOffset.UtcNow
+            };
+
+            await SettingsService.SaveAsync(settings);
+            Navigation.NavigateTo("/dashboard");
+        }
+        catch (Exception)
+        {
+            _saveError = "PlayBuilder couldn't save these settings. Please check that the application can write to its configuration folder.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string DisplayValue(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not selected" : value;
+
+    private static string GetFrontendIcon(string frontend) => frontend switch
+    {
+        "RetroBat" => "🦇",
+        "ES-DE" => "🎮",
+        "LaunchBox" => "🚀",
+        _ => "🧩"
+    };
+}

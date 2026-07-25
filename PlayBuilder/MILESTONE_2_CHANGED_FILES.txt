@@ -1,0 +1,29 @@
+PlayBuilder Milestone 2 — Deterministic Atlas Collection Integration
+
+Copy every file and folder in this ZIP into the PlayBuilder project root and replace existing files when prompted.
+
+Changed or added files:
+Program.cs
+Models/CollectionRulePreview.cs
+Components/Pages/CollectionRules.razor
+Services/AtlasCollectionRuleService.cs
+Services/Atlas/AtlasCandidate.cs
+Services/Atlas/AtlasDecision.cs
+Services/Atlas/AtlasDecisionEngine.cs
+Services/Atlas/AtlasReason.cs
+Services/Atlas/AtlasRuleContext.cs
+Services/Atlas/AtlasRuleResult.cs
+Services/Atlas/IAtlasRule.cs
+Services/Atlas/DumpQualityRule.cs
+Services/Atlas/LanguageRule.cs
+Services/Atlas/RegionRule.cs
+Services/Atlas/RevisionRule.cs
+Services/Atlas/SpecialReleaseRule.cs
+Services/Atlas/VersionRule.cs
+tests/PlayBuilder.Tests/Atlas/AtlasDecisionEngineTests.cs
+tests/PlayBuilder.Tests/Services/AtlasCollectionRuleServiceTests.cs
+docs/ROADMAP.md
+docs/CHANGELOG.md
+docs/ARCHITECTURE.md
+docs/ATLAS.md
+docs/RELEASE_NOTES.md

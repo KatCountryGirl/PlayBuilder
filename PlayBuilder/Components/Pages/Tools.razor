@@ -1,0 +1,66 @@
+@page "/tools"
+
+<PageTitle>Conversion Tools · PlayBuilder</PageTitle>
+
+<main class="tools-page">
+    <header class="tools-header">
+        <a class="brand" href="/" aria-label="PlayBuilder home"><span aria-hidden="true">🎮</span><strong>PlayBuilder</strong></a>
+        <PBButton Href="dashboard" Variant="Secondary">Back to Dashboard</PBButton>
+    </header>
+
+    <section class="tools-hero">
+        <div>
+            <p class="eyebrow">COMING TO PLAYBUILDER</p>
+            <h1>One home for game-file conversion.</h1>
+            <p>Batch conversion will use trusted command-line tools behind PlayBuilder's friendly interface, with clear source and destination protection.</p>
+        </div>
+        <div class="hero-icon" aria-hidden="true">🧰</div>
+    </section>
+
+    <section class="safety-card">
+        <div aria-hidden="true">🛡️</div>
+        <div>
+            <h2>Originals stay protected</h2>
+            <p>Converters will write to a separate destination, verify successful output, and only offer source cleanup as an explicit later choice.</p>
+        </div>
+    </section>
+
+    <section class="converter-grid" aria-label="Planned conversion tools">
+        @foreach (var converter in Converters)
+        {
+            <article class="converter-card">
+                <span class="converter-icon" aria-hidden="true">@converter.Icon</span>
+                <div>
+                    <h2>@converter.Title</h2>
+                    <p>@converter.Description</p>
+                    <small>@converter.Platform</small>
+                </div>
+                <span class="planned">PLANNED</span>
+            </article>
+        }
+    </section>
+
+    <section class="roadmap-card">
+        <p class="eyebrow">FIRST CONVERTER MILESTONE</p>
+        <h2>BIN/CUE and GDI → CHD</h2>
+        <p>This will be the first working converter because it solves the common multi-file disc problem and prepares the foundation for the other formats.</p>
+    </section>
+
+    <footer class="version-label">Development Preview · v0.0.7</footer>
+</main>
+
+@code {
+    private static readonly ConverterPreview[] Converters =
+    [
+        new("💿", "BIN/CUE → CHD", "Combine disc tracks and cue sheets into one compressed file.", "PlayStation · Sega CD · Saturn"),
+        new("💿", "GDI → CHD", "Convert multi-track Dreamcast dumps into one emulator-friendly file.", "Sega Dreamcast"),
+        new("🧊", "ISO → RVZ", "Create Dolphin's modern compressed format with verification support.", "GameCube · Wii"),
+        new("📦", "ISO ↔ CSO", "Compress or restore PSP disc images in batches.", "Sony PSP"),
+        new("🟦", "WUD/WUP ↔ WUX", "Prepare Wii U archives for the format your emulator expects.", "Nintendo Wii U"),
+        new("🌀", "ISO ↔ WBFS", "Convert Wii disc images while keeping game data intact.", "Nintendo Wii"),
+        new("📃", "M3U Generator", "Create playlists for multi-disc games from the catalog automatically.", "PlayStation · Saturn · Dreamcast"),
+        new("✅", "Verify Outputs", "Confirm every converted game before any cleanup is offered.", "All supported systems")
+    ];
+
+    private sealed record ConverterPreview(string Icon, string Title, string Description, string Platform);
+}

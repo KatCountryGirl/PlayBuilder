@@ -1,0 +1,65 @@
+.pb-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    font: inherit;
+    font-weight: 750;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+    user-select: none;
+}
+
+.pb-button--normal {
+    min-height: 46px;
+    padding: .9rem 1.55rem;
+}
+
+.pb-button--large {
+    min-height: 52px;
+    padding: 1rem 1.85rem;
+}
+
+.pb-button--primary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--pb-primary), var(--pb-primary-bright));
+    box-shadow: 0 12px 30px rgba(124, 77, 255, .34);
+}
+
+.pb-button--secondary {
+    color: var(--pb-text);
+    background: rgba(255, 255, 255, .055);
+    border-color: var(--pb-border);
+}
+
+.pb-button:hover:not(:disabled),
+.pb-button[aria-disabled="false"]:hover {
+    transform: translateY(-2px);
+}
+
+.pb-button--primary:hover:not(:disabled),
+.pb-button--primary[aria-disabled="false"]:hover {
+    box-shadow: 0 16px 38px rgba(124, 77, 255, .46);
+}
+
+.pb-button--secondary:hover:not(:disabled),
+.pb-button--secondary[aria-disabled="false"]:hover {
+    background: rgba(255, 255, 255, .085);
+    border-color: rgba(255, 255, 255, .16);
+}
+
+.pb-button:focus-visible {
+    outline: 3px solid rgba(189, 167, 255, .8);
+    outline-offset: 4px;
+}
+
+.pb-button:disabled,
+.pb-button[aria-disabled="true"] {
+    opacity: .48;
+    cursor: not-allowed;
+    pointer-events: none;
+}

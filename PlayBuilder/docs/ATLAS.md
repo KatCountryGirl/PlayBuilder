@@ -1,0 +1,31 @@
+# Atlas
+
+Atlas is PlayBuilder's deterministic, explainable ROM-selection rule engine. It is not a weighted scoring system.
+
+## Pipeline
+
+Filename → FilenameTokenizer → FilenameToken collection → FilenameMetadataParser → FilenameMetadata → AtlasCandidateFactory → AtlasDecisionEngine
+
+## Decision Model
+
+Atlas compares two candidates using ordered rules. The first rule that distinguishes the candidates decides their order. No points are accumulated and later rules cannot secretly outweigh an earlier rule.
+
+Current order:
+
+1. Dump quality
+2. Language priority
+3. Region priority
+4. Standard versus special release
+5. Revision
+6. Version
+7. Stable filename tie-breaker
+
+English-only mode removes candidates that cannot be identified as English before comparison.
+
+## Explanations
+
+The final decision contains structured reasons describing which rules favored the winner over the runner-up. The Collection Builder displays these reasons without changing the source archive.
+
+## Migration
+
+The live `ICollectionRuleService` now resolves to `AtlasCollectionRuleService`. The legacy `CollectionRuleService` remains registered as a concrete service for controlled comparison during the next milestone.

@@ -1,0 +1,58 @@
+:root {
+    --pb-shell-background: #100e16;
+    --pb-sidebar-background: #131119;
+    --pb-toolbar-background: #15121c;
+    --pb-panel-background: #1c1825;
+    --pb-button-background: #1d1927;
+    --pb-button-hover: #282133;
+    --pb-button-selected: #382a4d;
+    --pb-border-strong: rgba(255, 255, 255, 0.16);
+    --pb-text-subtle: #7a7284;
+    --pb-purple: #aa78ef;
+    --pb-purple-light: #d0adff;
+    --pb-purple-soft: rgba(170, 120, 239, 0.15);
+    --pb-green: #68d391;
+    --pb-sidebar-width: 270px;
+    --pb-toolbar-height: 84px;
+    color-scheme: dark;
+    --pb-bg: #101014;
+    --pb-surface: #1d1928;
+    --pb-surface-light: #252036;
+    --pb-primary: #7c4dff;
+    --pb-primary-bright: #a56cff;
+    --pb-primary-hover: #9f73ff;
+    --pb-accent-soft: #bda7ff;
+    --pb-text: #f7f4ff;
+    --pb-text-soft: #ded5f7;
+    --pb-text-muted: #aaa3b8;
+    --pb-border: rgba(255, 255, 255, .09);
+    --pb-radius-lg: 18px;
+    --pb-radius-xl: 28px;
+    --pb-shadow-lg: 0 28px 90px rgba(0, 0, 0, .45);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    background: radial-gradient(circle at top, #2f2352 0%, #17151f 45%, #101014 100%);
+    color: var(--pb-text);
+    font-family: Inter, "Segoe UI", sans-serif;
+}
+
+body {
+    min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}

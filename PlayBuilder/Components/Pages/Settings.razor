@@ -1,0 +1,207 @@
+@page "/settings"
+@inject ISettingsService SettingsService
+
+<PageTitle>Settings · PlayBuilder</PageTitle>
+
+<main class="settings-page">
+    <section class="settings-heading">
+        <div>
+            <p class="eyebrow">PLAYBUILDER SETTINGS</p>
+            <h1>Settings</h1>
+            <p>Update your folders, frontend, and safety preferences. Saving settings does not move, rename, or delete game files.</p>
+        </div>
+        <div class="settings-heading-icon" aria-hidden="true">⚙️</div>
+    </section>
+
+    @if (_isLoading)
+    {
+        <section class="settings-card loading-card">
+            <span aria-hidden="true">🎮</span>
+            <strong>Loading settings…</strong>
+        </section>
+    }
+    else
+    {
+        <div class="settings-layout">
+            <section class="settings-card">
+                <div class="card-title">
+                    <span class="card-icon folder-icon" aria-hidden="true">📁</span>
+                    <div>
+                        <p class="eyebrow">LIBRARY LOCATIONS</p>
+                        <h2>Folders</h2>
+                    </div>
+                </div>
+
+                <label for="settings-archive">Original game archive</label>
+                <p class="field-help">The protected master collection PlayBuilder scans.</p>
+                <input id="settings-archive" class="settings-input" @bind="ArchivePath" />
+
+                <label for="settings-library">Playable library</label>
+                <p class="field-help">The separate destination used for collections you build.</p>
+                <input id="settings-library" class="settings-input" @bind="LibraryPath" />
+            </section>
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <span class="card-icon frontend-icon" aria-hidden="true">🕹️</span>
+                    <div>
+                        <p class="eyebrow">PLAY EXPERIENCE</p>
+                        <h2>Frontend</h2>
+                    </div>
+                </div>
+
+                <label for="settings-frontend">Preferred frontend</label>
+                <p class="field-help">PlayBuilder will shape playable collections for this interface.</p>
+                <select id="settings-frontend" class="settings-input settings-select" @bind="Frontend">
+                    @foreach (var frontend in Frontends)
+                    {
+                        <option value="@frontend">@frontend</option>
+                    }
+                </select>
+
+                <div class="frontend-preview">
+                    <span aria-hidden="true">@GetFrontendIcon(Frontend)</span>
+                    <div>
+                        <strong>@Frontend</strong>
+                        <small>Current collection frontend</small>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-card safety-card">
+                <div class="card-title">
+                    <span class="card-icon safety-icon" aria-hidden="true">🛡️</span>
+                    <div>
+                        <p class="eyebrow">FILE SAFETY</p>
+                        <h2>Archive protection</h2>
+                    </div>
+                </div>
+
+                <label class="toggle-row">
+                    <input type="checkbox" @bind="ProtectArchive" />
+                    <span>
+                        <strong>Protect original game files</strong>
+                        <small>Keep destructive operations away from the original archive. Quarantine remains the recommended cleanup method.</small>
+                    </span>
+                </label>
+
+                <div class="safety-status">
+                    <span aria-hidden="true">✓</span>
+                    <div>
+                        <strong>Plan → Preview → Approve → Execute</strong>
+                        <small>PlayBuilder will show proposed file changes before carrying them out.</small>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="settings-card setup-summary">
+                <p class="eyebrow">CURRENT STATUS</p>
+                <h2>Configuration</h2>
+
+                <dl>
+                    <div><dt>Setup</dt><dd>@(IsConfigured ? "Complete" : "Needs attention")</dd></div>
+                    <div><dt>Configured</dt><dd>@SetupDate</dd></div>
+                    <div><dt>Protection</dt><dd>@(ProtectArchive ? "Enabled" : "Disabled")</dd></div>
+                </dl>
+
+                <a class="walkthrough-link" href="/setup/guided">
+                    <span aria-hidden="true">🧭</span>
+                    <span><strong>Run introduction walkthrough</strong><small>Review the original guided setup again.</small></span>
+                </a>
+            </aside>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <div class="save-message @(_saveSucceeded ? "success" : "error")" role="status">@_message</div>
+        }
+
+        <footer class="settings-actions">
+            <span>Changes affect future scans and builds only.</span>
+            <button class="save-button" type="button" disabled="@_isSaving" @onclick="SaveSettings">
+                @(_isSaving ? "Saving…" : "Save Settings")
+            </button>
+        </footer>
+    }
+</main>
+
+@code {
+    private static readonly string[] Frontends = ["RetroBat", "ES-DE", "EmulationStation", "LaunchBox", "Batocera", "Other"];
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _saveSucceeded;
+    private string _message = string.Empty;
+
+    private string ArchivePath { get; set; } = string.Empty;
+    private string LibraryPath { get; set; } = string.Empty;
+    private string Frontend { get; set; } = "RetroBat";
+    private bool ProtectArchive { get; set; } = true;
+    private DateTimeOffset? SetupCompletedAt { get; set; }
+
+    private bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(ArchivePath) &&
+        !string.IsNullOrWhiteSpace(LibraryPath) &&
+        !string.IsNullOrWhiteSpace(Frontend);
+
+    private string SetupDate => SetupCompletedAt?.ToLocalTime().ToString("MMM d, yyyy") ?? "Not recorded";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await SettingsService.LoadAsync();
+        ArchivePath = settings.ArchivePath;
+        LibraryPath = settings.LibraryPath;
+        Frontend = settings.Frontend;
+        ProtectArchive = settings.ProtectArchive;
+        SetupCompletedAt = settings.SetupCompletedAt;
+        _isLoading = false;
+    }
+
+    private async Task SaveSettings()
+    {
+        _message = string.Empty;
+        _saveSucceeded = false;
+
+        if (!IsConfigured)
+        {
+            _message = "Please enter both folder locations and choose a frontend.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            await SettingsService.SaveAsync(new PlayBuilderSettings
+            {
+                ArchivePath = ArchivePath.Trim(),
+                LibraryPath = LibraryPath.Trim(),
+                Frontend = Frontend,
+                ProtectArchive = ProtectArchive,
+                SetupCompletedAt = SetupCompletedAt ?? DateTimeOffset.UtcNow
+            });
+
+            SetupCompletedAt ??= DateTimeOffset.UtcNow;
+            _saveSucceeded = true;
+            _message = "Settings saved successfully.";
+        }
+        catch (Exception ex)
+        {
+            _message = $"Settings could not be saved: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string GetFrontendIcon(string frontend) => frontend switch
+    {
+        "RetroBat" => "🦇",
+        "ES-DE" => "🎮",
+        "EmulationStation" => "🕹️",
+        "LaunchBox" => "🚀",
+        "Batocera" => "🐾",
+        _ => "✨"
+    };
+}

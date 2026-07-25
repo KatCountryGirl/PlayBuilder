@@ -1,0 +1,751 @@
+@page "/library"
+@using Microsoft.EntityFrameworkCore
+@using PlayBuilder.Data
+@using PlayBuilder.Data.Entities
+@inject IDbContextFactory<PlayBuilderDbContext> DbFactory
+@inject NavigationManager Navigation
+@inject ISettingsService SettingsService
+@inject IArchiveScanner ArchiveScanner
+@inject IScanReportService ScanReportService
+@inject ICollectionService CollectionService
+
+<PageTitle>Library · PlayBuilder</PageTitle>
+
+<section class="library-page">
+    <header class="library-hero">
+        <div>
+            <p class="eyebrow">YOUR GAME CATALOG</p>
+            <h1>Library</h1>
+            <p>Browse every recognized release stored by PlayBuilder. Search, filter, inspect duplicate groups, and review the exact source file without touching your archive.</p>
+        </div>
+
+        <div class="library-summary" aria-label="Library summary">
+            <div><strong>@_totalGames.ToString("N0")</strong><span>releases</span></div>
+            <div><strong>@_systemCounts.Count.ToString("N0")</strong><span>systems</span></div>
+            <div><strong>@_duplicateGroupCount.ToString("N0")</strong><span>duplicate groups</span></div>
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="library-loading">
+            <div class="atlas-orb" aria-hidden="true">🤖</div>
+            <strong>@(_isSyncingCatalog ? "Atlas is synchronizing your catalog…" : "Atlas is opening your catalog…")</strong>
+            <span>@(_isSyncingCatalog ? "Your last scan is being imported into the Library. Original files remain untouched." : "Loading systems, filters, and game releases from SQLite.")</span>
+        </div>
+    }
+    else if (_totalGames == 0)
+    {
+        <section class="empty-library">
+            <div class="empty-atlas" aria-hidden="true">🤖</div>
+            <p class="eyebrow">ATLAS IS READY</p>
+            <h2>Your catalog is empty</h2>
+            <p>Run an archive analysis from the Dashboard. PlayBuilder will save every recognized game to this Library automatically.</p>
+            <button type="button" @onclick="OpenDashboard">Open Dashboard & Scan</button>
+        </section>
+    }
+    else
+    {
+        <div class="library-workspace">
+            <aside class="systems-panel" aria-label="Systems">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-kicker">BROWSE</span>
+                        <h2>Systems</h2>
+                    </div>
+                    <span>@_systemCounts.Count</span>
+                </div>
+
+                <button class="system-row @(_selectedSystem is null ? "active" : null)"
+                        type="button"
+                        @onclick="() => SelectSystemAsync(null)">
+                    <span class="system-icon" aria-hidden="true">▦</span>
+                    <span class="system-copy"><strong>All Systems</strong><small>Complete catalog</small></span>
+                    <b>@_totalGames.ToString("N0")</b>
+                </button>
+
+                <div class="system-list">
+                    @foreach (var system in _systemCounts)
+                    {
+                        <button class="system-row @(_selectedSystem == system.Name ? "active" : null)"
+                                type="button"
+                                @onclick="() => SelectSystemAsync(system.Name)">
+                            <span class="system-icon" aria-hidden="true">@GetSystemIcon(system.Name)</span>
+                            <span class="system-copy"><strong>@system.Name</strong><small>@GetSystemFamily(system.Name)</small></span>
+                            <b>@system.Count.ToString("N0")</b>
+                        </button>
+                    }
+                </div>
+            </aside>
+
+            <section class="games-panel" aria-label="Game releases">
+                <div class="games-toolbar">
+                    <label class="search-box">
+                        <span aria-hidden="true">⌕</span>
+                        <input value="@_searchText"
+                               @oninput="HandleSearchInput"
+                               placeholder="Search game titles…"
+                               aria-label="Search library" />
+                        @if (!string.IsNullOrWhiteSpace(_searchText))
+                        {
+                            <button type="button" title="Clear search" @onclick="ClearSearchAsync">×</button>
+                        }
+                    </label>
+
+                    <div class="filter-row">
+                        <select value="@_selectedRegion" @onchange="ChangeRegionAsync" aria-label="Filter by region">
+                            <option value="">All regions</option>
+                            @foreach (var region in _regions)
+                            {
+                                <option value="@region">@region</option>
+                            }
+                        </select>
+
+                        <select value="@_selectedLanguage" @onchange="ChangeLanguageAsync" aria-label="Filter by language">
+                            <option value="">All languages</option>
+                            @foreach (var language in _languages)
+                            {
+                                <option value="@language">@language</option>
+                            }
+                        </select>
+
+                        <select value="@_selectedExtension" @onchange="ChangeExtensionAsync" aria-label="Filter by file type">
+                            <option value="">All formats</option>
+                            @foreach (var extension in _extensions)
+                            {
+                                <option value="@extension">@extension</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="results-strip">
+                    <div>
+                        <strong>@_filteredCount.ToString("N0") releases</strong>
+                        <span>@GetActiveFilterDescription()</span>
+                    </div>
+                    <div class="legend"><span class="status-dot healthy"></span> Healthy <span class="status-dot review"></span> Review <span class="status-dot duplicate"></span> Duplicate</div>
+                </div>
+
+                <div class="bulk-actions" aria-label="Bulk game actions">
+                    <label class="select-page-control">
+                        <input type="checkbox"
+                               checked="@AreAllPageGamesSelected"
+                               @onchange="ToggleCurrentPageSelectionAsync" />
+                        <span>Select this page</span>
+                    </label>
+
+                    <span class="selection-count"><strong>@_selectedGameIds.Count.ToString("N0")</strong> selected</span>
+
+                    <div class="bulk-action-buttons">
+                        @if (_selectedGameIds.Count > 0 && _selectedGameIds.Count < _filteredCount)
+                        {
+                            <button type="button" class="secondary" @onclick="SelectAllFilteredAsync">
+                                Select all @_filteredCount.ToString("N0") matching games
+                            </button>
+                        }
+                        <button type="button" class="secondary" disabled="@(_selectedGameIds.Count == 0)" @onclick="ClearSelection">Clear</button>
+                        <button type="button" class="favorite-bulk" disabled="@(_selectedGameIds.Count == 0)" @onclick="AddSelectedToFavoritesAsync">⭐ Add to favorites</button>
+                        <button type="button" class="secondary" disabled="@(_selectedGameIds.Count == 0)" @onclick="RemoveSelectedFromFavoritesAsync">Remove favorites</button>
+                    </div>
+                </div>
+
+                @if (_games.Count == 0)
+                {
+                    <div class="no-results">
+                        <span aria-hidden="true">⌕</span>
+                        <h3>No games match those filters</h3>
+                        <p>Clear one or more filters and Atlas will try again.</p>
+                        <button type="button" @onclick="ResetFiltersAsync">Clear Filters</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="game-table" role="table" aria-label="Library results">
+                        <div class="game-row table-header" role="row">
+                            <span class="select-column"></span><span>Title</span><span>System</span><span>Region</span><span>Format</span><span>Status</span>
+                        </div>
+
+                        @foreach (var game in _games)
+                        {
+                            var duplicateCount = GetDuplicateCount(game.SortTitle);
+                            <div class="game-row @(_selectedGame?.Id == game.Id ? "selected" : null) @(_selectedGameIds.Contains(game.Id) ? "checked" : null)"
+                                 role="row">
+                                <label class="game-select" title="Select @game.Title">
+                                    <input type="checkbox"
+                                           checked="@_selectedGameIds.Contains(game.Id)"
+                                           @onchange="args => ToggleGameSelection(game.Id, args)" />
+                                </label>
+                                <button class="game-row-open" type="button" @onclick="() => SelectGameAsync(game)">
+                                    <span class="title-cell">
+                                        <strong>
+                                            @game.Title
+                                            @if (game.IsFavorite)
+                                            {
+                                                <span class="favorite-star" title="Favorite">⭐</span>
+                                            }
+                                        </strong>
+                                        <small>@GetReleaseSubtitle(game)</small>
+                                    </span>
+                                    <span>@game.System</span>
+                                    <span><span class="region-pill">@DisplayValue(game.Region, "Unknown")</span></span>
+                                    <span class="format-cell">@DisplayExtension(game.Extension)</span>
+                                    <span class="status-cell">
+                                        <span class="status-dot @GetStatusClass(game, duplicateCount)"></span>
+                                        @GetStatusLabel(game, duplicateCount)
+                                    </span>
+                                </button>
+                            </div>
+                        }
+                    </div>
+
+                    <footer class="pagination-bar">
+                        <span>Showing @_firstVisible.ToString("N0")–@_lastVisible.ToString("N0") of @_filteredCount.ToString("N0")</span>
+                        <div>
+                            <button type="button" disabled="@(_pageNumber <= 1)" @onclick="PreviousPageAsync">Previous</button>
+                            <span>Page @_pageNumber of @_totalPages</span>
+                            <button type="button" disabled="@(_pageNumber >= _totalPages)" @onclick="NextPageAsync">Next</button>
+                        </div>
+                    </footer>
+                }
+            </section>
+
+            <aside class="details-panel" aria-label="Selected game details">
+                @if (_selectedGame is null)
+                {
+                    <div class="details-empty">
+                        <div aria-hidden="true">🤖</div>
+                        <h2>Select a game</h2>
+                        <p>Atlas will show its releases, source file, detected metadata, and collection status here.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="details-title">
+                        <div class="game-art-placeholder" aria-hidden="true">@GetSystemIcon(_selectedGame.System)</div>
+                        <div>
+                            <span class="section-kicker">SELECTED RELEASE</span>
+                            <h2>@_selectedGame.Title</h2>
+                            <p>@_selectedGame.System</p>
+                        </div>
+                    </div>
+
+                    <button class="favorite-action active-@_selectedGame.IsFavorite.ToString().ToLowerInvariant()"
+                            type="button"
+                            @onclick="ToggleSelectedFavoriteAsync">
+                        <span aria-hidden="true">@(_selectedGame.IsFavorite ? "⭐" : "☆")</span>
+                        <span>
+                            <strong>@(_selectedGame.IsFavorite ? "Favorite" : "Add to favorites")</strong>
+                            <small>@(_selectedGame.IsFavorite ? "Included in Favorites collections" : "Mark this release as a personal must-play")</small>
+                        </span>
+                    </button>
+
+                    <div class="detail-status @GetStatusClass(_selectedGame, _selectedReleases.Count)">
+                        <span class="status-dot @GetStatusClass(_selectedGame, _selectedReleases.Count)"></span>
+                        <div>
+                            <strong>@GetStatusLabel(_selectedGame, _selectedReleases.Count)</strong>
+                            <p>@GetStatusExplanation(_selectedGame, _selectedReleases.Count)</p>
+                        </div>
+                    </div>
+
+                    <dl class="metadata-list">
+                        <div><dt>Region</dt><dd>@DisplayValue(_selectedGame.Region, "Unknown")</dd></div>
+                        <div><dt>Language</dt><dd>@DisplayValue(_selectedGame.Language, "Not tagged")</dd></div>
+                        <div><dt>Revision</dt><dd>@DisplayValue(_selectedGame.Revision, "Original")</dd></div>
+                        <div><dt>Disc</dt><dd>@(_selectedGame.DiscNumber > 0 ? _selectedGame.DiscNumber.ToString() : "Single disc")</dd></div>
+                        <div><dt>Format</dt><dd>@DisplayExtension(_selectedGame.Extension)</dd></div>
+                    </dl>
+
+                    <section class="release-section">
+                        <div class="details-section-heading">
+                            <h3>Known releases</h3>
+                            <span>@_selectedReleases.Count</span>
+                        </div>
+
+                        <div class="release-list">
+                            @foreach (var release in _selectedReleases)
+                            {
+                                <button class="release-item @(_selectedGame.Id == release.Id ? "active" : null)"
+                                        type="button"
+                                        @onclick="() => SelectRelease(release)">
+                                    <span>
+                                        <strong>@DisplayValue(release.Region, "Unknown region")</strong>
+                                        <small>@GetReleaseSubtitle(release)</small>
+                                    </span>
+                                    <b>@DisplayExtension(release.Extension)</b>
+                                </button>
+                            }
+                        </div>
+                    </section>
+
+                    <section class="source-section">
+                        <div class="details-section-heading"><h3>Source file</h3></div>
+                        <code title="@_selectedGame.SourcePath">@_selectedGame.SourcePath</code>
+                        <p>Read-only catalog entry. PlayBuilder has not moved, renamed, converted, or deleted this file.</p>
+                    </section>
+                }
+            </aside>
+        </div>
+    }
+</section>
+
+@code {
+    private const int PageSize = 100;
+    private readonly List<Game> _games = [];
+    private readonly List<Game> _selectedReleases = [];
+    private readonly List<SystemCount> _systemCounts = [];
+    private readonly List<string> _regions = [];
+    private readonly List<string> _languages = [];
+    private readonly List<string> _extensions = [];
+    private readonly Dictionary<string, int> _duplicateCounts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<int> _selectedGameIds = [];
+
+    private bool _isLoading = true;
+    private bool _isSyncingCatalog;
+    private string _searchText = string.Empty;
+    private string? _selectedSystem;
+    private string _selectedRegion = string.Empty;
+    private string _selectedLanguage = string.Empty;
+    private string _selectedExtension = string.Empty;
+    private Game? _selectedGame;
+    private int _pageNumber = 1;
+    private int _totalPages = 1;
+    private int _totalGames;
+    private int _filteredCount;
+    private int _duplicateGroupCount;
+    private int _firstVisible;
+    private int _lastVisible;
+    private CancellationTokenSource? _searchDelay;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLibrarySummaryAsync();
+
+        // Older builds saved the dashboard report before the SQLite Library existed.
+        // When that one-time mismatch is detected, rebuild the catalog from the
+        // configured archive automatically. The scan is read-only.
+        if (_totalGames == 0)
+        {
+            var latestScan = await ScanReportService.LoadLatestAsync();
+            var settings = await SettingsService.LoadAsync();
+
+            if (latestScan?.RecognizedFileCount > 0 &&
+                settings.IsConfigured &&
+                Directory.Exists(settings.ArchivePath))
+            {
+                _isSyncingCatalog = true;
+                await InvokeAsync(StateHasChanged);
+
+                await ArchiveScanner.ScanAsync(settings.ArchivePath);
+                await LoadLibrarySummaryAsync();
+
+                _isSyncingCatalog = false;
+            }
+        }
+
+        await LoadPageAsync();
+        _isLoading = false;
+    }
+
+    private async Task LoadLibrarySummaryAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // SQLite cannot translate some GroupBy projections used by EF Core.
+        // Load the lightweight library records once, then build summary values in memory.
+        var allGames = await db.Games
+            .AsNoTracking()
+            .ToListAsync();
+
+        _totalGames = allGames.Count;
+
+        _systemCounts.Clear();
+        _systemCounts.AddRange(allGames
+            .GroupBy(game => string.IsNullOrWhiteSpace(game.System) ? "Unknown" : game.System,
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => new SystemCount(group.Key, group.Count()))
+            .OrderByDescending(item => item.Count)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase));
+
+        _duplicateGroupCount = allGames
+            .Where(game => !string.IsNullOrWhiteSpace(game.SortTitle))
+            .GroupBy(game => game.SortTitle, StringComparer.OrdinalIgnoreCase)
+            .Count(group => group.Count() > 1);
+
+        _regions.Clear();
+        _regions.AddRange(allGames
+            .Select(game => game.Region)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
+
+        _languages.Clear();
+        _languages.AddRange(allGames
+            .Select(game => game.Language)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
+
+        _extensions.Clear();
+        _extensions.AddRange(allGames
+            .Select(game => game.Extension)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private async Task LoadPageAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var query = ApplyFilters(db.Games.AsNoTracking());
+
+        _filteredCount = await query.CountAsync();
+        _totalPages = Math.Max(1, (int)Math.Ceiling(_filteredCount / (double)PageSize));
+        _pageNumber = Math.Clamp(_pageNumber, 1, _totalPages);
+
+        _games.Clear();
+        _games.AddRange(await query
+            .OrderBy(game => game.Title)
+            .ThenBy(game => game.Region)
+            .ThenBy(game => game.SourcePath)
+            .Skip((_pageNumber - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync());
+
+        _duplicateCounts.Clear();
+        var sortTitles = _games
+            .Select(game => game.SortTitle)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (sortTitles.Count > 0)
+        {
+            var matchingTitles = await db.Games
+                .AsNoTracking()
+                .Where(game => sortTitles.Contains(game.SortTitle))
+                .Select(game => game.SortTitle)
+                .ToListAsync();
+
+            foreach (var group in matchingTitles
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .GroupBy(value => value, StringComparer.OrdinalIgnoreCase))
+            {
+                _duplicateCounts[group.Key] = group.Count();
+            }
+        }
+
+        _firstVisible = _filteredCount == 0 ? 0 : ((_pageNumber - 1) * PageSize) + 1;
+        _lastVisible = Math.Min(_pageNumber * PageSize, _filteredCount);
+
+        if (_selectedGame is not null && _games.All(game => game.Id != _selectedGame.Id))
+        {
+            _selectedGame = null;
+            _selectedReleases.Clear();
+        }
+    }
+
+    private IQueryable<Game> ApplyFilters(IQueryable<Game> query)
+    {
+        if (!string.IsNullOrWhiteSpace(_selectedSystem))
+        {
+            query = query.Where(game =>
+                game.System == _selectedSystem);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedRegion))
+        {
+            query = query.Where(game =>
+                game.Region == _selectedRegion);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedLanguage))
+        {
+            query = query.Where(game =>
+                game.Language == _selectedLanguage);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedExtension))
+        {
+            query = query.Where(game =>
+                game.Extension == _selectedExtension);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var searchPattern =
+                $"%{EscapeLikePattern(_searchText.Trim())}%";
+
+            query = query.Where(game =>
+                EF.Functions.Like(
+                    game.Title,
+                    searchPattern,
+                    @"\"));
+        }
+
+        return query;
+    }
+
+    private static string EscapeLikePattern(string value)
+    {
+        return value
+            .Replace(@"\", @"\\")
+            .Replace("%", @"\%")
+            .Replace("_", @"\_");
+    }
+
+    private bool AreAllPageGamesSelected =>
+        _games.Count > 0 && _games.All(game => _selectedGameIds.Contains(game.Id));
+
+    private void ToggleGameSelection(int gameId, ChangeEventArgs args)
+    {
+        var isSelected = args.Value is bool value && value;
+        if (isSelected)
+        {
+            _selectedGameIds.Add(gameId);
+        }
+        else
+        {
+            _selectedGameIds.Remove(gameId);
+        }
+    }
+
+    private Task ToggleCurrentPageSelectionAsync(ChangeEventArgs args)
+    {
+        var select = args.Value is bool value && value;
+        foreach (var game in _games)
+        {
+            if (select) _selectedGameIds.Add(game.Id);
+            else _selectedGameIds.Remove(game.Id);
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task SelectAllFilteredAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var ids = await ApplyFilters(db.Games.AsNoTracking())
+            .Select(game => game.Id)
+            .ToListAsync();
+
+        _selectedGameIds.Clear();
+        foreach (var id in ids) _selectedGameIds.Add(id);
+    }
+
+    private void ClearSelection() => _selectedGameIds.Clear();
+
+    private async Task AddSelectedToFavoritesAsync() => await SetSelectedFavoritesAsync(true);
+
+    private async Task RemoveSelectedFromFavoritesAsync() => await SetSelectedFavoritesAsync(false);
+
+    private async Task SetSelectedFavoritesAsync(bool isFavorite)
+    {
+        if (_selectedGameIds.Count == 0) return;
+
+        await CollectionService.SetFavoritesAsync(_selectedGameIds, isFavorite);
+
+        foreach (var game in _games.Where(game => _selectedGameIds.Contains(game.Id)))
+        {
+            game.IsFavorite = isFavorite;
+        }
+
+        foreach (var game in _selectedReleases.Where(game => _selectedGameIds.Contains(game.Id)))
+        {
+            game.IsFavorite = isFavorite;
+        }
+
+        if (_selectedGame is not null && _selectedGameIds.Contains(_selectedGame.Id))
+        {
+            _selectedGame.IsFavorite = isFavorite;
+        }
+    }
+
+    private async Task SelectGameAsync(Game game)
+    {
+        _selectedGame = game;
+        await LoadSelectedReleasesAsync(game.SortTitle);
+    }
+
+    private async Task LoadSelectedReleasesAsync(string sortTitle)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _selectedReleases.Clear();
+        _selectedReleases.AddRange(await db.Games.AsNoTracking()
+            .Where(game => game.SortTitle == sortTitle)
+            .OrderBy(game => game.Region)
+            .ThenBy(game => game.Revision)
+            .ThenBy(game => game.SourcePath)
+            .ToListAsync());
+    }
+
+    private async Task ToggleSelectedFavoriteAsync()
+    {
+        if (_selectedGame is null) return;
+        var isFavorite = await CollectionService.ToggleFavoriteAsync(_selectedGame.Id);
+        _selectedGame.IsFavorite = isFavorite;
+
+        var pageGame = _games.FirstOrDefault(game => game.Id == _selectedGame.Id);
+        if (pageGame is not null) pageGame.IsFavorite = isFavorite;
+
+        var release = _selectedReleases.FirstOrDefault(game => game.Id == _selectedGame.Id);
+        if (release is not null) release.IsFavorite = isFavorite;
+    }
+
+    private void SelectRelease(Game release) => _selectedGame = release;
+
+    private async Task HandleSearchInput(ChangeEventArgs args)
+    {
+        _searchText = args.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+
+        _searchDelay?.Cancel();
+        _searchDelay?.Dispose();
+        _searchDelay = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(220, _searchDelay.Token);
+            await LoadPageAsync();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task ClearSearchAsync()
+    {
+        _searchText = string.Empty;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task SelectSystemAsync(string? system)
+    {
+        _selectedSystem = system;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task ChangeRegionAsync(ChangeEventArgs args)
+    {
+        _selectedRegion = args.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task ChangeLanguageAsync(ChangeEventArgs args)
+    {
+        _selectedLanguage = args.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task ChangeExtensionAsync(ChangeEventArgs args)
+    {
+        _selectedExtension = args.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task ResetFiltersAsync()
+    {
+        _searchText = string.Empty;
+        _selectedSystem = null;
+        _selectedRegion = string.Empty;
+        _selectedLanguage = string.Empty;
+        _selectedExtension = string.Empty;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (_pageNumber <= 1) return;
+        _pageNumber--;
+        await LoadPageAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        if (_pageNumber >= _totalPages) return;
+        _pageNumber++;
+        await LoadPageAsync();
+    }
+
+    private void OpenDashboard() => Navigation.NavigateTo("/dashboard");
+
+    private int GetDuplicateCount(string sortTitle) =>
+        _duplicateCounts.TryGetValue(sortTitle, out var count) ? count : 1;
+
+    private static string GetStatusClass(Game game, int releaseCount)
+    {
+        if (releaseCount > 1) return "duplicate";
+        if (string.IsNullOrWhiteSpace(game.Region) || game.Region == "Unknown" || string.IsNullOrWhiteSpace(game.Language)) return "review";
+        return "healthy";
+    }
+
+    private static string GetStatusLabel(Game game, int releaseCount) =>
+        GetStatusClass(game, releaseCount) switch
+        {
+            "duplicate" => $"{releaseCount} releases",
+            "review" => "Needs review",
+            _ => "Healthy"
+        };
+
+    private static string GetStatusExplanation(Game game, int releaseCount) =>
+        GetStatusClass(game, releaseCount) switch
+        {
+            "duplicate" => "PlayBuilder found more than one release for this title. The 1G1R engine will decide which copy to recommend.",
+            "review" => "One or more filename tags could not be confidently detected. The source file remains safe and unchanged.",
+            _ => "The filename contains enough information for PlayBuilder to catalog this release confidently."
+        };
+
+    private static string GetReleaseSubtitle(Game game)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(game.Language)) parts.Add(game.Language);
+        if (!string.IsNullOrWhiteSpace(game.Revision)) parts.Add(game.Revision);
+        if (game.DiscNumber > 0) parts.Add($"Disc {game.DiscNumber}");
+        return parts.Count == 0 ? Path.GetFileName(game.SourcePath) : string.Join(" · ", parts);
+    }
+
+    private string GetActiveFilterDescription()
+    {
+        var filters = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_selectedSystem)) filters.Add(_selectedSystem);
+        if (!string.IsNullOrWhiteSpace(_selectedRegion)) filters.Add(_selectedRegion);
+        if (!string.IsNullOrWhiteSpace(_selectedLanguage)) filters.Add(_selectedLanguage);
+        if (!string.IsNullOrWhiteSpace(_selectedExtension)) filters.Add(DisplayExtension(_selectedExtension));
+        if (!string.IsNullOrWhiteSpace(_searchText)) filters.Add($"matching “{_searchText.Trim()}”");
+        return filters.Count == 0 ? "Across your complete catalog" : string.Join(" · ", filters);
+    }
+
+    private static string DisplayValue(string value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+    private static string DisplayExtension(string extension) =>
+        string.IsNullOrWhiteSpace(extension) ? "Unknown" : extension.TrimStart('.').ToUpperInvariant();
+
+    private static string GetSystemIcon(string system)
+    {
+        var value = system.ToLowerInvariant();
+        if (value.Contains("playstation") || value is "ps1" or "ps2" or "ps3" or "psp" or "vita") return "◉";
+        if (value.Contains("xbox")) return "✕";
+        if (value.Contains("game boy") || value.Contains("gba") || value.Contains("nds") || value.Contains("3ds")) return "▣";
+        if (value.Contains("dreamcast") || value.Contains("saturn") || value.Contains("genesis") || value.Contains("mega drive")) return "◎";
+        if (value.Contains("arcade") || value.Contains("mame")) return "♜";
+        return "▦";
+    }
+
+    private static string GetSystemFamily(string system)
+    {
+        var value = system.ToLowerInvariant();
+        if (value.Contains("playstation") || value.StartsWith("ps")) return "Sony";
+        if (value.Contains("xbox")) return "Microsoft";
+        if (value.Contains("genesis") || value.Contains("saturn") || value.Contains("dreamcast") || value.Contains("sega")) return "Sega";
+        if (value.Contains("arcade") || value.Contains("mame")) return "Arcade";
+        return "Game system";
+    }
+
+    private sealed record SystemCount(string Name, int Count);
+}

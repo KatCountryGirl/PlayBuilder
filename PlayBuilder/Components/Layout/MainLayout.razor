@@ -1,0 +1,485 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ISettingsService SettingsService
+
+@if (_checkingSetup)
+{
+    <div class="pb-startup">
+        <div class="pb-startup-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+                <path d="M7 8h10a5 5 0 0 1 4.8 6.4l-1.1 3.8a2.5 2.5 0 0 1-4.4.8l-1.2-1.5H8.9L7.7 19a2.5 2.5 0 0 1-4.4-.8l-1.1-3.8A5 5 0 0 1 7 8Z" />
+                <path d="M7 12v4M5 14h4M16.5 13.2h.01M18.5 15.2h.01" />
+            </svg>
+        </div>
+
+        <strong>PlayBuilder</strong>
+        <span>Loading…</span>
+    </div>
+}
+else if (UseSetupLayout)
+{
+    @Body
+}
+else
+{
+    <div class="pb-shell">
+        <aside class="pb-sidebar">
+            <a class="pb-brand"
+               href="/dashboard"
+               aria-label="PlayBuilder Home">
+                <span class="pb-brand-icon pb-cartoon-icon" aria-hidden="true">🎮</span>
+
+                <span class="pb-brand-copy">
+                    <strong>PlayBuilder</strong>
+                    <small>Game Collection Builder</small>
+                </span>
+            </a>
+
+            <nav class="pb-navigation" aria-label="PlayBuilder navigation">
+                <NavLink href="dashboard"
+                         class="pb-nav-button"
+                         Match="NavLinkMatch.All">
+                    <span class="pb-nav-icon nav-home" aria-hidden="true">🏠</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Home</strong>
+                        <small>Collection overview</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="scan"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-scan" aria-hidden="true">🔎</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Scan Games</strong>
+                        <small>Find and analyze files</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="library"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-library" aria-hidden="true">🗃️</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Library</strong>
+                        <small>Browse discovered games</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="collection-rules"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-builder" aria-hidden="true">🧩</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Collections</strong>
+                        <small>Build and manage collections</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="build"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-preview" aria-hidden="true">📋</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Build Preview</strong>
+                        <small>Review the complete plan</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="tools"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-tools" aria-hidden="true">🧰</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Conversion</strong>
+                        <small>Create playable formats</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="downloads"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-downloads" aria-hidden="true">📥</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Downloads</strong>
+                        <small>Manage your sources</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="metadata"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-metadata" aria-hidden="true">🖼️</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Metadata</strong>
+                        <small>Artwork and game details</small>
+                    </span>
+                </NavLink>
+
+                <div class="pb-nav-divider"></div>
+
+                <NavLink href="advanced"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-cleanup" aria-hidden="true">🛡️</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Review &amp; Cleanup</strong>
+                        <small>Quarantine and file safety</small>
+                    </span>
+                </NavLink>
+
+                <NavLink href="settings"
+                         class="pb-nav-button">
+                    <span class="pb-nav-icon nav-settings" aria-hidden="true">⚙️</span>
+
+                    <span class="pb-nav-copy">
+                        <strong>Settings</strong>
+                        <small>Folders and preferences</small>
+                    </span>
+                </NavLink>
+            </nav>
+
+            <div class="pb-sidebar-status">
+                <span class="pb-status-dot" aria-hidden="true"></span>
+
+                <span>
+                    <strong>Ready</strong>
+                    <small>Original game files protected</small>
+                </span>
+            </div>
+        </aside>
+
+        <section class="pb-workspace">
+            <header class="pb-toolbar">
+                <button class="pb-atlas-button"
+                        type="button"
+                        @onclick="OpenAtlas"
+                        aria-expanded="@_atlasOpen"
+                        aria-controls="atlas-panel">
+                    <span class="pb-atlas-button-icon pb-atlas-cartoon" aria-hidden="true">🤖</span>
+
+                    <span>Ask Atlas</span>
+                </button>
+            </header>
+
+            <main class="pb-content">
+                @Body
+            </main>
+        </section>
+    </div>
+
+    @if (_atlasOpen)
+    {
+        <button class="pb-atlas-backdrop"
+                type="button"
+                aria-label="Close Atlas"
+                @onclick="CloseAtlas">
+        </button>
+
+        <aside id="atlas-panel"
+               class="pb-atlas-panel"
+               aria-label="Atlas help panel">
+            <header class="pb-atlas-header">
+                <div class="pb-atlas-identity">
+                    <span class="pb-atlas-avatar" aria-hidden="true">🤖</span>
+
+                    <span>
+                        <strong>Atlas</strong>
+                        <small>PlayBuilder Guide</small>
+                    </span>
+                </div>
+
+                <button class="pb-atlas-close"
+                        type="button"
+                        aria-label="Close Atlas"
+                        @onclick="CloseAtlas">
+                    ×
+                </button>
+            </header>
+
+            <div class="pb-atlas-content">
+                <section class="pb-atlas-intro">
+                    <span class="pb-atlas-label">CURRENT PAGE</span>
+                    <h2>@AtlasTitle</h2>
+                    <p>@AtlasDescription</p>
+                </section>
+
+                <section class="pb-atlas-card">
+                    <h3>What can I do here?</h3>
+
+                    <div class="pb-atlas-tip-list">
+                        @foreach (var tip in AtlasTips)
+                        {
+                            <div class="pb-atlas-tip">
+                                <span class="pb-atlas-check" aria-hidden="true">✓</span>
+                                <span>@tip</span>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <section class="pb-atlas-card pb-atlas-safety">
+                    <div class="pb-atlas-card-heading">
+                        <span aria-hidden="true">🛡</span>
+                        <h3>Safety</h3>
+                    </div>
+
+                    <p>@AtlasNote</p>
+                </section>
+
+                <section class="pb-atlas-next">
+                    <span class="pb-atlas-label">SUGGESTED NEXT STEP</span>
+                    <strong>@AtlasNextStep</strong>
+                </section>
+            </div>
+        </aside>
+    }
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <button class="dismiss" type="button">×</button>
+</div>
+
+@code {
+    private bool _checkingSetup = true;
+    private bool _atlasOpen;
+
+    private string CurrentPath => Navigation
+        .ToBaseRelativePath(Navigation.Uri)
+        .Split('?', '#')[0]
+        .Trim('/');
+
+    private string NormalizedPath => CurrentPath.ToLowerInvariant();
+
+    private bool UseSetupLayout =>
+        string.IsNullOrWhiteSpace(CurrentPath) ||
+        NormalizedPath == "setup" ||
+        NormalizedPath == "setup/guided";
+
+    private string CurrentSection => NormalizedPath switch
+    {
+        "dashboard" => "Home",
+        "scan" => "Scan Games",
+        "library" => "Library",
+        "collection-rules" => "Collection Builder",
+        "build" => "Build Preview",
+        "tools" => "Conversion",
+        "downloads" => "Downloads",
+        "metadata" => "Metadata",
+        "advanced" => "Advanced",
+        "settings" => "Settings",
+        _ => "PlayBuilder"
+    };
+
+    private string AtlasTitle => CurrentSection;
+
+    private string AtlasDescription => NormalizedPath switch
+    {
+        "scan" =>
+            "Scan your original game archive and add discovered games to PlayBuilder’s database. Scanning reads files but does not modify them.",
+
+        "library" =>
+            "Browse every game PlayBuilder has discovered. Search, filter, and inspect releases without changing your original files.",
+
+        "collection-rules" =>
+            "Create a complete, 1G1R, or curated collection using preferred regions, languages, genres, series, and rankings.",
+
+        "build" =>
+            "Review the exact collection PlayBuilder plans to create before files are copied, moved, converted, or quarantined.",
+
+        "tools" =>
+            "Create space-saving or frontend-friendly formats while preserving your original game archive.",
+
+        "downloads" =>
+            "Manage source links that you provide and decide which files should be added to your collection.",
+
+        "metadata" =>
+            "Review game information, artwork, ratings, genres, franchises, and metadata-provider results.",
+
+        "advanced" =>
+            "Manage quarantine, duplicate cleanup, and powerful operations that require additional confirmation.",
+
+        "settings" =>
+            "Change your archive location, playable-library destination, frontend, and application preferences.",
+
+        _ =>
+            "Review your archive status, latest scan, collection health, and recommended next steps."
+    };
+
+    private IReadOnlyList<string> AtlasTips => NormalizedPath switch
+    {
+        "scan" =>
+        [
+            "Choose which folders should be scanned.",
+            "Review supported archive and game-file formats.",
+            "Watch scan progress and newly discovered games.",
+            "Rescan safely whenever your archive changes."
+        ],
+
+        "library" =>
+        [
+            "Browse all systems or select one platform.",
+            "Search by game title or filename.",
+            "Filter by region, language, and format.",
+            "Select a game to inspect related releases."
+        ],
+
+        "collection-rules" =>
+        [
+            "Build a complete, 1G1R, or curated collection.",
+            "Choose English-only or English-preferred behavior.",
+            "Set a collection size or include everything.",
+            "Filter by genre, franchise, rating, and ranking."
+        ],
+
+        "build" =>
+        [
+            "Review every selected game.",
+            "See why excluded releases were rejected.",
+            "Choose copy, move, convert, or quarantine actions.",
+            "Approve the plan only after reviewing it."
+        ],
+
+        "tools" =>
+        [
+            "Keep source files untouched.",
+            "Write converted files to a separate destination.",
+            "Review estimated storage savings.",
+            "Generate multi-disc playlists when needed."
+        ],
+
+        "downloads" =>
+        [
+            "Add links and sources you obtained yourself.",
+            "Apply collection filters before downloading.",
+            "Review the download plan before starting.",
+            "Use only content you are permitted to access."
+        ],
+
+        "metadata" =>
+        [
+            "Review missing or incomplete metadata.",
+            "Choose preferred metadata providers.",
+            "Inspect artwork and game descriptions.",
+            "Approve metadata changes before applying them."
+        ],
+
+        "advanced" =>
+        [
+            "Review your quarantine folder.",
+            "Preview every cleanup operation.",
+            "Restore quarantined files when needed.",
+            "Require confirmation before permanent deletion."
+        ],
+
+        "settings" =>
+        [
+            "Change the source game archive folder.",
+            "Change the playable-library destination.",
+            "Choose your frontend.",
+            "Review archive-protection settings."
+        ],
+
+        _ =>
+        [
+            "Review your latest archive scan.",
+            "Check the health of your collection.",
+            "See duplicate and multi-disc counts.",
+            "Start or repeat a safe archive scan."
+        ]
+    };
+
+    private string AtlasNote => NormalizedPath switch
+    {
+        "scan" =>
+            "Scanning is read-only. PlayBuilder will not rename, move, or delete files during a scan.",
+
+        "library" =>
+            "Browsing and filtering the Library are read-only operations.",
+
+        "collection-rules" =>
+            "Changing collection preferences only updates the proposed plan.",
+
+        "build" =>
+            "Every operation follows Plan → Preview → Approve → Execute.",
+
+        "tools" =>
+            "Converted files should be written to a separate destination.",
+
+        "downloads" =>
+            "PlayBuilder does not provide download links.",
+
+        "metadata" =>
+            "Metadata changes should be previewed before they are written.",
+
+        "advanced" =>
+            "Quarantine is safer than permanent deletion and remains the recommended default.",
+
+        "settings" =>
+            "Changing settings does not immediately modify any game files.",
+
+        _ =>
+            "Atlas never changes files or starts an operation on its own."
+    };
+
+    private string AtlasNextStep => NormalizedPath switch
+    {
+        "scan" => "Choose a folder and begin a read-only scan.",
+        "library" => "Select a system or search for a game.",
+        "collection-rules" => "Choose the collection type you want to build.",
+        "build" => "Generate and review the complete preview.",
+        "tools" => "Choose a source and separate destination.",
+        "downloads" => "Add your first source link.",
+        "metadata" => "Review games with missing metadata.",
+        "advanced" => "Review or configure the quarantine folder.",
+        "settings" => "Review your saved folders and frontend.",
+        _ => "Review the latest scan or begin a new one."
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += HandleLocationChanged;
+
+        try
+        {
+            var settings = await SettingsService.LoadAsync();
+
+            if (!settings.IsConfigured && NormalizedPath != "setup" && NormalizedPath != "setup/guided")
+            {
+                Navigation.NavigateTo("/setup", replace: true);
+                return;
+            }
+        }
+        finally
+        {
+            _checkingSetup = false;
+        }
+    }
+
+    private void OpenAtlas()
+    {
+        _atlasOpen = true;
+    }
+
+    private void CloseAtlas()
+    {
+        _atlasOpen = false;
+    }
+
+    private void HandleLocationChanged(
+        object? sender,
+        LocationChangedEventArgs args)
+    {
+        _atlasOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+}

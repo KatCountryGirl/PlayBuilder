@@ -1,0 +1,72 @@
+.settings-page { width:100%; padding:24px clamp(24px,3vw,42px) 38px; }
+.settings-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:24px 26px; border:1px solid var(--pb-border); border-radius:16px; background:linear-gradient(135deg,rgba(62,45,92,.7),rgba(29,25,40,.9)); }
+.eyebrow { margin:0 0 7px; color:var(--pb-accent-soft); font-size:.7rem; font-weight:850; letter-spacing:.16em; }
+.settings-heading h1 { margin:0; font-size:clamp(2rem,3.2vw,3rem); letter-spacing:-.04em; }
+.settings-heading p:not(.eyebrow) { max-width:760px; margin:8px 0 0; color:var(--pb-text-muted); font-size:.88rem; line-height:1.55; }
+.settings-heading-icon { display:grid; place-items:center; width:68px; height:68px; flex:0 0 auto; border-radius:18px; background:rgba(165,110,255,.14); font-size:2.25rem; box-shadow:inset 0 0 0 1px rgba(208,173,255,.18); }
+.settings-layout {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(300px,.72fr);
+    grid-template-areas:
+        "folders frontend"
+        "summary safety";
+    gap:14px;
+    margin-top:14px;
+    align-items:start;
+}
+.settings-card { padding:20px; border:1px solid var(--pb-border); border-radius:16px; background:rgba(29,25,40,.86); }
+.settings-layout > .settings-card:nth-child(1) { grid-area:folders; }
+.settings-layout > .settings-card:nth-child(2) { grid-area:frontend; }
+.settings-layout > .settings-card:nth-child(3) { grid-area:safety; }
+.settings-layout > .settings-card:nth-child(4) { grid-area:summary; }
+.card-title { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+.card-title h2,.setup-summary h2 { margin:0; font-size:1.2rem; }
+.card-icon { display:grid; place-items:center; width:42px; height:42px; flex:0 0 auto; border-radius:12px; font-size:1.35rem; }
+.folder-icon { background:rgba(80,159,255,.14); }
+.frontend-icon { background:rgba(165,110,255,.14); }
+.safety-icon { background:rgba(65,211,153,.12); }
+.settings-card label:not(.toggle-row) { display:block; margin:16px 0 3px; color:var(--pb-text-soft); font-size:.8rem; font-weight:750; }
+.field-help { margin:0 0 8px; color:var(--pb-text-muted); font-size:.72rem; }
+.settings-input { width:100%; min-height:43px; padding:0 12px; border:1px solid var(--pb-border); border-radius:11px; background:rgba(10,9,16,.78); color:var(--pb-text); font:inherit; font-size:.83rem; }
+.settings-input:focus { outline:none; border-color:rgba(171,126,255,.72); box-shadow:0 0 0 3px rgba(124,77,255,.12); }
+.settings-select { cursor:pointer; }
+.frontend-preview { display:flex; align-items:center; gap:12px; margin-top:14px; padding:12px; border:1px solid var(--pb-border); border-radius:12px; background:rgba(255,255,255,.025); }
+.frontend-preview > span { font-size:1.6rem; }
+.frontend-preview strong,.frontend-preview small { display:block; }
+.frontend-preview small { margin-top:2px; color:var(--pb-text-muted); font-size:.7rem; }
+.toggle-row { display:grid; grid-template-columns:auto 1fr; gap:12px; padding:14px; border:1px solid rgba(65,211,153,.2); border-radius:13px; background:rgba(65,211,153,.055); cursor:pointer; }
+.toggle-row input { width:18px; height:18px; margin-top:2px; accent-color:#59dca8; }
+.toggle-row strong,.toggle-row small { display:block; }
+.toggle-row small { margin-top:4px; color:var(--pb-text-muted); font-size:.72rem; line-height:1.45; }
+.safety-status { display:flex; align-items:center; gap:11px; margin-top:12px; padding:12px; border-radius:12px; background:rgba(255,255,255,.025); }
+.safety-status > span { display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:rgba(65,211,153,.14); color:#61dfad; font-weight:900; }
+.safety-status strong,.safety-status small { display:block; }
+.safety-status small { margin-top:2px; color:var(--pb-text-muted); font-size:.7rem; }
+.setup-summary dl { margin:15px 0; }
+.setup-summary dl div { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid var(--pb-border); }
+.setup-summary dt { color:var(--pb-text-muted); font-size:.73rem; }
+.setup-summary dd { margin:0; font-size:.76rem; font-weight:750; text-align:right; }
+.walkthrough-link { display:flex; align-items:center; gap:11px; margin-top:14px; padding:12px; border:1px solid rgba(171,126,255,.22); border-radius:12px; background:rgba(124,77,255,.07); color:var(--pb-text); text-decoration:none; }
+.walkthrough-link > span:first-child { font-size:1.35rem; }
+.walkthrough-link strong,.walkthrough-link small { display:block; }
+.walkthrough-link small { margin-top:2px; color:var(--pb-text-muted); font-size:.68rem; }
+.settings-actions { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:14px; padding:14px 16px; border:1px solid var(--pb-border); border-radius:14px; background:rgba(29,25,40,.72); }
+.settings-actions > span { color:var(--pb-text-muted); font-size:.74rem; }
+.save-button { min-height:42px; padding:0 18px; border:0; border-radius:11px; background:linear-gradient(135deg,#8b4dff,#aa6dff); color:white; font:inherit; font-size:.8rem; font-weight:800; cursor:pointer; }
+.save-button:disabled { opacity:.6; cursor:wait; }
+.save-message { margin-top:14px; padding:11px 14px; border-radius:11px; font-size:.78rem; }
+.save-message.success { border:1px solid rgba(65,211,153,.25); background:rgba(65,211,153,.08); color:#8ce9c3; }
+.save-message.error { border:1px solid rgba(255,112,132,.25); background:rgba(255,112,132,.08); color:#ff9aaa; }
+.loading-card { display:flex; align-items:center; justify-content:center; gap:12px; min-height:220px; margin-top:14px; }
+.loading-card span { font-size:2rem; }
+@media(max-width:900px){
+    .settings-layout{
+        grid-template-columns:1fr;
+        grid-template-areas:
+            "folders"
+            "frontend"
+            "safety"
+            "summary";
+    }
+}
+@media(max-width:620px){ .settings-page{padding:18px;} .settings-heading{align-items:flex-start;} .settings-heading-icon{width:54px;height:54px;font-size:1.8rem;} .settings-actions{align-items:stretch;flex-direction:column;} .save-button{width:100%;} }

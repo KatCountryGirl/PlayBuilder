@@ -1,0 +1,32 @@
+# PlayBuilder Project Bible
+
+**Version:** 1.1  
+**Current application version:** 0.2.0 development
+
+## Product
+
+PlayBuilder is a Windows-focused ROM management application built with .NET 10, Blazor Server, C#, Entity Framework Core, and SQLite.
+
+## Roles
+
+The Product Owner controls features, UI, workflow, priorities, and acceptance testing. The Lead Software Engineer owns architecture, implementation, maintainability, documentation, build quality, and milestone packaging.
+
+## Delivery rules
+
+Every coding milestone must:
+
+1. Update relevant documentation.
+2. Update `CHANGELOG.md`.
+3. Update `ROADMAP.md`.
+4. provide complete changed files in a ZIP.
+5. contain no placeholder implementations.
+6. leave the project buildable.
+7. clearly state whether Visual Studio should build, rebuild, run, or wait.
+
+## Engineering principles
+
+- Prefer steady, buildable progress over disruptive rewrites.
+- Keep the Atlas core independent from the Blazor UI.
+- Use deterministic rules with human-readable explanations.
+- Prefer tokenizer and parser pipelines over giant regex-only parsers.
+- Preserve working legacy behavior until its replacement is tested and integrated.
