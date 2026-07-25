@@ -12,6 +12,7 @@ builder.Services.AddSingleton<ISettingsService, JsonSettingsService>();
 builder.Services.AddSingleton<IScanReportService, JsonScanReportService>();
 builder.Services.AddSingleton<CollectionRuleService>();
 builder.Services.AddSingleton<ICollectionRuleService, AtlasCollectionRuleService>();
+builder.Services.AddSingleton<IAtlasComparisonService, AtlasComparisonService>();
 builder.Services.AddSingleton<ICollectionService, CollectionService>();
 
 // Atlas is registered as a parallel decision engine during its staged migration.

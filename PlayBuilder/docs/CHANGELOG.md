@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Atlas comparison service for side-by-side legacy-versus-Atlas migration reports without changing live Collection Builder behavior.
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
