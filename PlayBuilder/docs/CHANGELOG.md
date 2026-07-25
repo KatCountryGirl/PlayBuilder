@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Restored the Scan Games page at `/scan` with folder setup, frontend selection, scan progress, Rescan, and scan summary.
 - 1G1R scan groups now include every normalized title, including single-ROM titles, with compact Collection Builder diagnostics.
 - Atlas Profiles with JSON-backed create, rename, delete, duplicate, active-profile switching, and saved Atlas preference options.
 - Atlas Inspector in Collection Builder with read-only decision details, ordered candidates, and parsed metadata for each recommendation.
@@ -10,10 +11,12 @@
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- Collection Builder now presents the simple 1G1R choices first and keeps profiles, rule switches, priority controls, and diagnostics collapsed under Advanced Options.
 - Collection Builder, legacy comparison, and Atlas preview now use the full 1G1R group set while duplicate reporting remains duplicate-only.
 - Atlas explanations now identify the first deterministic rule that selected the winner before listing any supporting rule matches.
 
 ### Fixed
+- Fixed the Scan Games navigation link returning Not Found.
 - Fixed 1G1R previews only showing duplicate title groups instead of recommending singleton title groups automatically.
 
 ## [0.3.0] - 2026-07-24

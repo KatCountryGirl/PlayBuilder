@@ -1,7 +1,7 @@
 @page "/dashboard"
 @implements IDisposable
 @inject ISettingsService SettingsService
-@inject IArchiveScanner ArchiveScanner
+@inject IGameScanWorkflowService GameScanWorkflow
 @inject IScanReportService ScanReportService
 @inject NavigationManager Navigation
 
@@ -338,13 +338,9 @@
 
         try
         {
-            var result = await ArchiveScanner.ScanAsync(
-                _settings.ArchivePath,
+            var result = await GameScanWorkflow.ScanAndSaveAsync(
+                _settings,
                 progress,
-                _scanCancellation.Token);
-
-            await ScanReportService.SaveLatestAsync(
-                result,
                 _scanCancellation.Token);
 
             _latestScan = result;

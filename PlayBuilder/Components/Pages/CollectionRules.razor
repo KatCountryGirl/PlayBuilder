@@ -63,6 +63,31 @@
 
         @if (_collectionType == "1g1r")
         {
+        <section class="mode-card">
+            <p class="eyebrow">COLLECTION MODE</p>
+            <div class="mode-grid">
+                <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.AllGames)">
+                    <input type="radio" name="collection-mode" value="@OneGameOneRomMode.AllGames"
+                           checked="@(_options.Mode == OneGameOneRomMode.AllGames)"
+                           @onchange="() => SetMode(OneGameOneRomMode.AllGames)" />
+                    <span class="mode-icon" aria-hidden="true">🌎</span>
+                    <span><strong>1G1R — All Games</strong><small>Keep one best playable copy of every unique game. English is preferred, then your language and region preferences.</small></span>
+                </label>
+                <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.EnglishOnly)">
+                    <input type="radio" name="collection-mode" value="@OneGameOneRomMode.EnglishOnly"
+                           checked="@(_options.Mode == OneGameOneRomMode.EnglishOnly)"
+                           @onchange="() => SetMode(OneGameOneRomMode.EnglishOnly)" />
+                    <span class="mode-icon" aria-hidden="true">🇺🇸</span>
+                    <span><strong>1G1R — English Only</strong><small>Keep one best English-capable copy of every unique game.</small></span>
+                </label>
+            </div>
+        </section>
+
+        <details class="advanced-options">
+            <summary>
+                <span>Advanced Options</span>
+                <small>Profiles and saved expert preferences</small>
+            </summary>
         <section class="profile-card">
             <div>
                 <p class="eyebrow">ATLAS PROFILE</p>
@@ -96,28 +121,14 @@
                 }
             </div>
         </section>
-
-        <section class="mode-card">
-            <p class="eyebrow">COLLECTION MODE</p>
-            <div class="mode-grid">
-                <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.AllGames)">
-                    <input type="radio" name="collection-mode" value="@OneGameOneRomMode.AllGames"
-                           checked="@(_options.Mode == OneGameOneRomMode.AllGames)"
-                           @onchange="() => SetMode(OneGameOneRomMode.AllGames)" />
-                    <span class="mode-icon" aria-hidden="true">🌎</span>
-                    <span><strong>1G1R — All Games</strong><small>Keeps one best copy of every unique game, including titles with no English release. Language order decides which version wins.</small></span>
-                </label>
-                <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.EnglishOnly)">
-                    <input type="radio" name="collection-mode" value="@OneGameOneRomMode.EnglishOnly"
-                           checked="@(_options.Mode == OneGameOneRomMode.EnglishOnly)"
-                           @onchange="() => SetMode(OneGameOneRomMode.EnglishOnly)" />
-                    <span class="mode-icon" aria-hidden="true">🇺🇸</span>
-                    <span><strong>1G1R — English Only</strong><small>Keeps one best English-capable release and excludes groups where no English version is available.</small></span>
-                </label>
-            </div>
-        </section>
+        </details>
 
         <section class="rule-layout">
+            <details class="advanced-options rules-advanced">
+                <summary>
+                    <span>Advanced Options</span>
+                    <small>Rule switches, language and region order, and diagnostics</small>
+                </summary>
             <aside class="rules-panel">
                 <section class="priority-section">
                     <p class="eyebrow">LANGUAGE PREFERENCE</p>
@@ -197,7 +208,20 @@
                         <span><strong>Prefer newer versions</strong><small>Version 1.1 beats Version 1.0 when earlier rules tie.</small></span>
                     </label>
                 </div>
+
+                <section class="diagnostics-strip" aria-label="1G1R diagnostics">
+                    <article><span>Total ROMs loaded</span><strong>@_preview.Diagnostics.TotalRomsLoaded.ToString("N0")</strong></article>
+                    <article><span>Valid filenames</span><strong>@_preview.Diagnostics.ValidFilenames.ToString("N0")</strong></article>
+                    <article><span>Normalized titles</span><strong>@_preview.Diagnostics.NormalizedTitles.ToString("N0")</strong></article>
+                    <article><span>Unique title groups</span><strong>@_preview.Diagnostics.UniqueTitleGroups.ToString("N0")</strong></article>
+                    <article><span>Single-ROM groups</span><strong>@_preview.Diagnostics.SingleRomGroups.ToString("N0")</strong></article>
+                    <article><span>Multi-ROM groups</span><strong>@_preview.Diagnostics.MultiRomGroups.ToString("N0")</strong></article>
+                    <article><span>Rejected before Atlas</span><strong>@_preview.Diagnostics.GroupsRejectedBeforeAtlas.ToString("N0")</strong></article>
+                    <article><span>English-only excluded</span><strong>@_preview.Diagnostics.GroupsExcludedByEnglishOnlyMode.ToString("N0")</strong></article>
+                    <article><span>Final recommendations</span><strong>@_preview.Diagnostics.FinalRecommendations.ToString("N0")</strong></article>
+                </section>
             </aside>
+            </details>
 
             <section class="preview-panel">
                 <div class="preview-heading">
@@ -217,18 +241,6 @@
                         <article><span>No English release</span><strong>@_preview.GroupsExcludedByLanguage.ToString("N0")</strong><small>Excluded by English-only mode</small></article>
                     }
                 </div>
-
-                <section class="diagnostics-strip" aria-label="1G1R diagnostics">
-                    <article><span>Total ROMs loaded</span><strong>@_preview.Diagnostics.TotalRomsLoaded.ToString("N0")</strong></article>
-                    <article><span>Valid filenames</span><strong>@_preview.Diagnostics.ValidFilenames.ToString("N0")</strong></article>
-                    <article><span>Normalized titles</span><strong>@_preview.Diagnostics.NormalizedTitles.ToString("N0")</strong></article>
-                    <article><span>Unique title groups</span><strong>@_preview.Diagnostics.UniqueTitleGroups.ToString("N0")</strong></article>
-                    <article><span>Single-ROM groups</span><strong>@_preview.Diagnostics.SingleRomGroups.ToString("N0")</strong></article>
-                    <article><span>Multi-ROM groups</span><strong>@_preview.Diagnostics.MultiRomGroups.ToString("N0")</strong></article>
-                    <article><span>Rejected before Atlas</span><strong>@_preview.Diagnostics.GroupsRejectedBeforeAtlas.ToString("N0")</strong></article>
-                    <article><span>English-only excluded</span><strong>@_preview.Diagnostics.GroupsExcludedByEnglishOnlyMode.ToString("N0")</strong></article>
-                    <article><span>Final recommendations</span><strong>@_preview.Diagnostics.FinalRecommendations.ToString("N0")</strong></article>
-                </section>
 
                 @if (_preview.Selections.Count == 0)
                 {
