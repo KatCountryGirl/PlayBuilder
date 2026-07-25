@@ -79,7 +79,7 @@ public sealed class VersionRuleTests
         var result = _rule.Compare(
             AtlasRuleTestHelpers.Candidate(version: new Version(2, 0)),
             AtlasRuleTestHelpers.Candidate(version: new Version(1, 0)),
-            AtlasRuleTestHelpers.Context(new CollectionRuleOptions { PreferNewestRevision = false }));
+            AtlasRuleTestHelpers.Context(new CollectionRuleOptions { PreferNewestVersion = false }));
 
         Assert.Equal(0, result.Comparison);
     }

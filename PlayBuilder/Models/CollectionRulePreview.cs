@@ -24,6 +24,16 @@ public sealed class CollectionRuleOptions
 
     public bool AvoidSpecialReleases { get; set; } = true;
     public bool PreferNewestRevision { get; set; } = true;
+    public bool PreferNewestVersion { get; set; } = true;
+    public HashSet<string> EnabledRuleNames { get; set; } =
+    [
+        "Dump quality",
+        "Language priority",
+        "Region priority",
+        "Release type",
+        "Revision",
+        "Version"
+    ];
 }
 
 public sealed class CollectionRulePreview

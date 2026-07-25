@@ -3,6 +3,7 @@
 @inject ICollectionRuleService CollectionRuleService
 @inject ICollectionService Collections
 @inject ISettingsService SettingsService
+@inject IAtlasProfileService AtlasProfiles
 @inject NavigationManager Navigation
 
 <PageTitle>Collection Builder · PlayBuilder</PageTitle>
@@ -62,6 +63,40 @@
 
         @if (_collectionType == "1g1r")
         {
+        <section class="profile-card">
+            <div>
+                <p class="eyebrow">ATLAS PROFILE</p>
+                <h2>@(_activeProfile?.Name ?? "Profile")</h2>
+                <p>Named preference profiles save Atlas rule switches and priority orders for this collection mode.</p>
+            </div>
+            <div class="profile-controls">
+                <label>
+                    Active profile
+                    <select value="@_activeProfileId" @onchange="ChangeActiveProfileAsync">
+                        @foreach (var profile in _profiles.Profiles)
+                        {
+                            <option value="@profile.Id">@profile.Name</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    Profile name
+                    <input value="@_profileName" @oninput="args => _profileName = args.Value?.ToString() ?? string.Empty" />
+                </label>
+                <div class="profile-actions">
+                    <button type="button" @onclick="CreateProfileAsync">New</button>
+                    <button type="button" disabled="@(_activeProfile is null)" @onclick="DuplicateProfileAsync">Duplicate</button>
+                    <button type="button" disabled="@(_activeProfile is null)" @onclick="SaveActiveProfileAsync">Save</button>
+                    <button type="button" disabled="@(_activeProfile is null)" @onclick="RenameProfileAsync">Rename</button>
+                    <button type="button" disabled="@(_profiles.Profiles.Count <= 1 || _activeProfile is null)" @onclick="DeleteActiveProfileAsync">Delete</button>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_profileMessage))
+                {
+                    <p class="profile-message">@_profileMessage</p>
+                }
+            </div>
+        </section>
+
         <section class="mode-card">
             <p class="eyebrow">COLLECTION MODE</p>
             <div class="mode-grid">
@@ -138,12 +173,28 @@
 
                 <div class="toggle-list">
                     <label>
-                        <input type="checkbox" @bind="_options.AvoidSpecialReleases" @bind:after="RefreshPreview" />
+                        <input type="checkbox" checked="@IsRuleEnabled(DumpQualityRuleName)" @onchange="args => SetRuleEnabled(DumpQualityRuleName, args)" />
+                        <span><strong>Use dump-quality rule</strong><small>Verified dumps beat neutral dumps, and known bad dumps lose when better evidence exists.</small></span>
+                    </label>
+                    <label>
+                        <input type="checkbox" checked="@IsRuleEnabled(LanguageRuleName)" @onchange="args => SetRuleEnabled(LanguageRuleName, args)" />
+                        <span><strong>Use language priority rule</strong><small>Language order decides before region order.</small></span>
+                    </label>
+                    <label>
+                        <input type="checkbox" checked="@IsRuleEnabled(RegionRuleName)" @onchange="args => SetRuleEnabled(RegionRuleName, args)" />
+                        <span><strong>Use region priority rule</strong><small>Region order breaks ties after language preference.</small></span>
+                    </label>
+                    <label>
+                        <input type="checkbox" checked="@_options.AvoidSpecialReleases" @onchange="SetReleaseRule" />
                         <span><strong>Avoid beta, demo, hack, and prototype copies</strong><small>Standard retail releases win when available.</small></span>
                     </label>
                     <label>
-                        <input type="checkbox" @bind="_options.PreferNewestRevision" @bind:after="RefreshPreview" />
+                        <input type="checkbox" checked="@_options.PreferNewestRevision" @onchange="SetRevisionRule" />
                         <span><strong>Prefer newer revisions</strong><small>Rev 2 beats Rev 1 when language and region are equal.</small></span>
+                    </label>
+                    <label>
+                        <input type="checkbox" checked="@_options.PreferNewestVersion" @onchange="SetVersionRule" />
+                        <span><strong>Prefer newer versions</strong><small>Version 1.1 beats Version 1.0 when earlier rules tie.</small></span>
                     </label>
                 </div>
             </aside>
@@ -351,6 +402,13 @@
 </main>
 
 @code {
+    private const string DumpQualityRuleName = "Dump quality";
+    private const string LanguageRuleName = "Language priority";
+    private const string RegionRuleName = "Region priority";
+    private const string ReleaseTypeRuleName = "Release type";
+    private const string RevisionRuleName = "Revision";
+    private const string VersionRuleName = "Version";
+
     private string _collectionType = "1g1r";
 
     private static readonly CollectionTypeOption[] CollectionTypes =
@@ -370,6 +428,11 @@
     private ArchiveScanResult? _scan;
     private CollectionRuleOptions _options = new();
     private CollectionRulePreview _preview = new();
+    private AtlasProfileStore _profiles = new();
+    private AtlasProfile? _activeProfile;
+    private string _activeProfileId = string.Empty;
+    private string _profileName = string.Empty;
+    private string _profileMessage = string.Empty;
     private int _favoriteCount;
     private string _favoritesName = "My Favorites";
     private string _favoritesDestination = string.Empty;
@@ -385,8 +448,18 @@
         _favoritesDestination = Path.Combine(settings.LibraryPath ?? string.Empty, "Favorites");
         _frontend = settings.Frontend;
         _favoriteCount = await Collections.GetFavoriteCountAsync();
+        await LoadProfileStateAsync();
         RefreshPreview();
         _isLoading = false;
+    }
+
+    private async Task LoadProfileStateAsync()
+    {
+        _profiles = await AtlasProfiles.LoadAsync();
+        _activeProfile = _profiles.ActiveProfile;
+        _activeProfileId = _activeProfile.Id;
+        _profileName = _activeProfile.Name;
+        _options = _activeProfile.ToOptions(_options.Mode);
     }
 
     private async Task SaveFavoritesAsync()
@@ -434,6 +507,87 @@
         RefreshPreview();
     }
 
+    private async Task ChangeActiveProfileAsync(ChangeEventArgs args)
+    {
+        var profileId = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return;
+        }
+
+        var mode = _options.Mode;
+        _activeProfile = await AtlasProfiles.SetActiveProfileAsync(profileId);
+        _profiles = await AtlasProfiles.LoadAsync();
+        _activeProfileId = _activeProfile.Id;
+        _profileName = _activeProfile.Name;
+        _options = _activeProfile.ToOptions(mode);
+        _profileMessage = $"Using {_activeProfile.Name}.";
+        RefreshPreview();
+    }
+
+    private async Task CreateProfileAsync()
+    {
+        var profile = await AtlasProfiles.CreateProfileAsync(NextProfileName("Personal"));
+        await ActivateProfileAsync(profile, $"Created {profile.Name}.");
+    }
+
+    private async Task DuplicateProfileAsync()
+    {
+        if (_activeProfile is null)
+        {
+            return;
+        }
+
+        var profile = await AtlasProfiles.DuplicateProfileAsync(_activeProfile.Id, NextProfileName($"{_activeProfile.Name} Copy"));
+        await ActivateProfileAsync(profile, $"Duplicated {profile.Name}.");
+    }
+
+    private async Task SaveActiveProfileAsync()
+    {
+        if (_activeProfile is null)
+        {
+            return;
+        }
+
+        _activeProfile.Name = NormalizeProfileName(_profileName);
+        _activeProfile.ApplyOptions(_options);
+        var profile = await AtlasProfiles.SaveProfileAsync(_activeProfile);
+        await ActivateProfileAsync(profile, $"Saved {profile.Name}.");
+    }
+
+    private async Task RenameProfileAsync()
+    {
+        if (_activeProfile is null)
+        {
+            return;
+        }
+
+        var profile = await AtlasProfiles.RenameProfileAsync(_activeProfile.Id, NormalizeProfileName(_profileName));
+        await ActivateProfileAsync(profile, $"Renamed {profile.Name}.");
+    }
+
+    private async Task DeleteActiveProfileAsync()
+    {
+        if (_activeProfile is null)
+        {
+            return;
+        }
+
+        var deletedName = _activeProfile.Name;
+        await AtlasProfiles.DeleteProfileAsync(_activeProfile.Id);
+        await LoadProfileStateAsync();
+        _profileMessage = $"Deleted {deletedName}.";
+        RefreshPreview();
+    }
+
+    private async Task ActivateProfileAsync(AtlasProfile profile, string message)
+    {
+        await AtlasProfiles.SetActiveProfileAsync(profile.Id);
+        await LoadProfileStateAsync();
+        _profileMessage = message;
+        RefreshPreview();
+    }
+
     private void MoveLanguage(string language, int direction) => MoveItem(_options.LanguagePriority, language, direction);
     private void MoveRegion(string region, int direction) => MoveItem(_options.RegionPriority, region, direction);
 
@@ -452,6 +606,51 @@
         if (ReferenceEquals(items, _options.LanguagePriority)) _options.LanguagePriority = reordered;
         else _options.RegionPriority = reordered;
 
+        RefreshPreview();
+    }
+
+    private bool IsRuleEnabled(string ruleName) =>
+        _options.EnabledRuleNames.Contains(ruleName);
+
+    private void SetRuleEnabled(string ruleName, ChangeEventArgs args)
+    {
+        var enabled = args.Value is bool value && value;
+        if (enabled)
+        {
+            _options.EnabledRuleNames.Add(ruleName);
+        }
+        else
+        {
+            _options.EnabledRuleNames.Remove(ruleName);
+        }
+
+        RefreshPreview();
+    }
+
+    private void SetReleaseRule(ChangeEventArgs args)
+    {
+        var enabled = args.Value is bool value && value;
+        _options.AvoidSpecialReleases = enabled;
+        if (enabled) _options.EnabledRuleNames.Add(ReleaseTypeRuleName);
+        else _options.EnabledRuleNames.Remove(ReleaseTypeRuleName);
+        RefreshPreview();
+    }
+
+    private void SetRevisionRule(ChangeEventArgs args)
+    {
+        var enabled = args.Value is bool value && value;
+        _options.PreferNewestRevision = enabled;
+        if (enabled) _options.EnabledRuleNames.Add(RevisionRuleName);
+        else _options.EnabledRuleNames.Remove(RevisionRuleName);
+        RefreshPreview();
+    }
+
+    private void SetVersionRule(ChangeEventArgs args)
+    {
+        var enabled = args.Value is bool value && value;
+        _options.PreferNewestVersion = enabled;
+        if (enabled) _options.EnabledRuleNames.Add(VersionRuleName);
+        else _options.EnabledRuleNames.Remove(VersionRuleName);
         RefreshPreview();
     }
 
@@ -475,5 +674,30 @@
         _options.RegionPriority = ["Europe", "United Kingdom", "World", "Australia", "USA", "Canada", "France", "Germany", "Spain", "Italy", "Japan", "Korea", "Brazil", "Unknown"];
         RefreshPreview();
     }
+
+    private string NextProfileName(string baseName)
+    {
+        var existingNames = _profiles.Profiles
+            .Select(profile => profile.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!existingNames.Contains(baseName))
+        {
+            return baseName;
+        }
+
+        for (var index = 2; ; index++)
+        {
+            var candidate = $"{baseName} {index}";
+            if (!existingNames.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private static string NormalizeProfileName(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "Personal" : value.Trim();
+
     private sealed record CollectionTypeOption(string Id, string Icon, string Title, string Description, string LongDescription, bool Available);
 }

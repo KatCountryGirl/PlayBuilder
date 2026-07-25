@@ -41,7 +41,7 @@ public sealed class AtlasDecisionEngine
 
     private int Compare(AtlasCandidate left, AtlasCandidate right, AtlasRuleContext context)
     {
-        foreach (var rule in _rules)
+        foreach (var rule in GetEnabledRules(context))
         {
             var result = rule.Compare(left, right, context);
             if (result.Comparison != 0) return result.Comparison;
@@ -62,9 +62,10 @@ public sealed class AtlasDecisionEngine
                 []);
         }
 
-        for (var index = 0; index < _rules.Count; index++)
+        var enabledRules = GetEnabledRules(context);
+        for (var index = 0; index < enabledRules.Count; index++)
         {
-            var rule = _rules[index];
+            var rule = enabledRules[index];
             var result = rule.Compare(winner, runnerUp, context);
             if (result.Comparison >= 0)
             {
@@ -75,6 +76,7 @@ public sealed class AtlasDecisionEngine
                 winner,
                 runnerUp,
                 context,
+                enabledRules,
                 index + 1);
 
             return (new AtlasReason(rule.Name, result.Description), supportingReasons);
@@ -89,12 +91,13 @@ public sealed class AtlasDecisionEngine
         AtlasCandidate winner,
         AtlasCandidate runnerUp,
         AtlasRuleContext context,
+        IReadOnlyList<IAtlasRule> enabledRules,
         int startIndex)
     {
         var reasons = new List<AtlasReason>();
-        for (var index = startIndex; index < _rules.Count; index++)
+        for (var index = startIndex; index < enabledRules.Count; index++)
         {
-            var rule = _rules[index];
+            var rule = enabledRules[index];
             var result = rule.Compare(winner, runnerUp, context);
             if (result.Comparison < 0)
             {
@@ -103,5 +106,12 @@ public sealed class AtlasDecisionEngine
         }
 
         return reasons;
+    }
+
+    private IReadOnlyList<IAtlasRule> GetEnabledRules(AtlasRuleContext context)
+    {
+        return _rules
+            .Where(rule => context.Options.EnabledRuleNames.Contains(rule.Name))
+            .ToList();
     }
 }

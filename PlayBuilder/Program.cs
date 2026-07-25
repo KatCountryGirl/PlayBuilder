@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 // PlayBuilder application services.
 builder.Services.AddSingleton<ISettingsService, JsonSettingsService>();
 builder.Services.AddSingleton<IScanReportService, JsonScanReportService>();
+builder.Services.AddSingleton<IAtlasProfileService, JsonAtlasProfileService>();
 builder.Services.AddSingleton<CollectionRuleService>();
 builder.Services.AddSingleton<ICollectionRuleService, AtlasCollectionRuleService>();
 builder.Services.AddSingleton<IAtlasComparisonService, AtlasComparisonService>();

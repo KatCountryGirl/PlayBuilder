@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Atlas Profiles with JSON-backed create, rename, delete, duplicate, active-profile switching, and saved Atlas preference options.
 - Atlas Inspector in Collection Builder with read-only decision details, ordered candidates, and parsed metadata for each recommendation.
 - Atlas comparison service for side-by-side legacy-versus-Atlas migration reports without changing live Collection Builder behavior.
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
