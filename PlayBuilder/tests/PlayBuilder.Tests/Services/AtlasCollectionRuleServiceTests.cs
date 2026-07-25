@@ -29,6 +29,8 @@ public sealed class AtlasCollectionRuleServiceTests
         Assert.Equal("Atlas", preview.EngineName);
         Assert.Equal("Example Game (USA) (En).zip", selection.RecommendedVariant);
         Assert.NotEmpty(selection.DecisionReasons);
+        Assert.StartsWith("Selected by Language priority:", selection.DecisionReasons[0]);
+        Assert.Contains("Selected by Language priority:", selection.Reason);
     }
 
     [Fact]

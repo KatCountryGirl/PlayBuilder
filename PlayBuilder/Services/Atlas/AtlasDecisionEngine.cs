@@ -30,7 +30,13 @@ public sealed class AtlasDecisionEngine
         var winner = eligible[0];
         var reasons = BuildReasons(winner, eligible.Skip(1).FirstOrDefault(), context);
 
-        return new AtlasDecision { Winner = winner, Candidates = eligible, Reasons = reasons };
+        return new AtlasDecision
+        {
+            Winner = winner,
+            Candidates = eligible,
+            DecidingReason = reasons.DecidingReason,
+            SupportingReasons = reasons.SupportingReasons
+        };
     }
 
     private int Compare(AtlasCandidate left, AtlasCandidate right, AtlasRuleContext context)
@@ -44,20 +50,57 @@ public sealed class AtlasDecisionEngine
         return StringComparer.OrdinalIgnoreCase.Compare(left.Metadata.FileName, right.Metadata.FileName);
     }
 
-    private IReadOnlyList<AtlasReason> BuildReasons(AtlasCandidate winner, AtlasCandidate? runnerUp, AtlasRuleContext context)
+    private (AtlasReason DecidingReason, IReadOnlyList<AtlasReason> SupportingReasons) BuildReasons(
+        AtlasCandidate winner,
+        AtlasCandidate? runnerUp,
+        AtlasRuleContext context)
     {
         if (runnerUp is null)
-            return [new AtlasReason("Eligibility", "This was the only eligible candidate.")];
-
-        var reasons = new List<AtlasReason>();
-        foreach (var rule in _rules)
         {
-            var result = rule.Compare(winner, runnerUp, context);
-            if (result.Comparison < 0) reasons.Add(new AtlasReason(rule.Name, result.Description));
+            return (
+                new AtlasReason("Eligibility", "This was the only eligible candidate."),
+                []);
         }
 
-        if (reasons.Count == 0)
-            reasons.Add(new AtlasReason("Stable tie-breaker", "All configured rules tied, so the alphabetically first filename was selected."));
+        for (var index = 0; index < _rules.Count; index++)
+        {
+            var rule = _rules[index];
+            var result = rule.Compare(winner, runnerUp, context);
+            if (result.Comparison >= 0)
+            {
+                continue;
+            }
+
+            var supportingReasons = BuildSupportingReasons(
+                winner,
+                runnerUp,
+                context,
+                index + 1);
+
+            return (new AtlasReason(rule.Name, result.Description), supportingReasons);
+        }
+
+        return (
+            new AtlasReason("Stable tie-breaker", "All configured rules tied, so the alphabetically first filename was selected."),
+            []);
+    }
+
+    private IReadOnlyList<AtlasReason> BuildSupportingReasons(
+        AtlasCandidate winner,
+        AtlasCandidate runnerUp,
+        AtlasRuleContext context,
+        int startIndex)
+    {
+        var reasons = new List<AtlasReason>();
+        for (var index = startIndex; index < _rules.Count; index++)
+        {
+            var rule = _rules[index];
+            var result = rule.Compare(winner, runnerUp, context);
+            if (result.Comparison < 0)
+            {
+                reasons.Add(new AtlasReason(rule.Name, result.Description));
+            }
+        }
 
         return reasons;
     }

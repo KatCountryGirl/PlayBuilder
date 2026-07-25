@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Atlas explanations now identify the first deterministic rule that selected the winner before listing any supporting rule matches.
+
 ## [0.3.0] - 2026-07-24
 
 ### Added

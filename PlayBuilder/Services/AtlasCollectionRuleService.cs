@@ -47,7 +47,7 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
                 RecommendedLanguage = metadata.PrimaryLanguage,
                 IsFallback = fallback,
                 Reason = BuildSummary(decision, options),
-                DecisionReasons = decision.Reasons.Select(reason => $"{reason.Rule}: {reason.Description}").ToList(),
+                DecisionReasons = BuildDecisionReasons(decision),
                 Alternatives = decision.Candidates.Skip(1).Select(candidate => candidate.Metadata.FileName).ToList()
             });
 
@@ -69,6 +69,26 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
         var prefix = options.Mode == OneGameOneRomMode.EnglishOnly
             ? "English-only mode"
             : "All-games mode";
-        return $"{prefix} · {string.Join(" · ", decision.Reasons.Select(reason => reason.Description))}";
+
+        var summary = $"{prefix} · Selected by {decision.DecidingReason.Rule}: {decision.DecidingReason.Description}";
+        if (decision.SupportingReasons.Count == 0)
+        {
+            return summary;
+        }
+
+        return $"{summary} · Supporting: {string.Join(" · ", decision.SupportingReasons.Select(reason => reason.Description))}";
+    }
+
+    private static List<string> BuildDecisionReasons(AtlasDecision decision)
+    {
+        var reasons = new List<string>
+        {
+            $"Selected by {decision.DecidingReason.Rule}: {decision.DecidingReason.Description}"
+        };
+
+        reasons.AddRange(decision.SupportingReasons.Select(
+            reason => $"Supporting match - {reason.Rule}: {reason.Description}"));
+
+        return reasons;
     }
 }
