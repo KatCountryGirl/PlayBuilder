@@ -10,6 +10,13 @@ public sealed class AtlasComparisonReport
     public int ComparedGroupCount => Rows.Count;
     public int AgreementCount => Rows.Count(row => row.EnginesAgree);
     public int DifferenceCount => Rows.Count - AgreementCount;
+    public int EnglishOnlyExcludedCount => Rows.Count(row =>
+        row.LegacyWinner is null &&
+        row.AtlasWinner is null &&
+        string.IsNullOrWhiteSpace(row.AtlasDecidingRule));
+    public double AgreementPercentage => ComparedGroupCount == 0
+        ? 0
+        : AgreementCount * 100d / ComparedGroupCount;
 }
 
 public sealed class AtlasComparisonRow

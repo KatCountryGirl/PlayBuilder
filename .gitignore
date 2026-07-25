@@ -62,6 +62,7 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+PlayBuilder/config/atlas-profiles.json
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

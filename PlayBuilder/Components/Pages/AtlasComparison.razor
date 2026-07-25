@@ -1,0 +1,169 @@
+@page "/atlas-comparison"
+@inject IScanReportService ScanReportService
+@inject IAtlasComparisonService AtlasComparisonService
+@inject IAtlasProfileService AtlasProfiles
+
+<PageTitle>Atlas Comparison Report · PlayBuilder</PageTitle>
+
+<main class="comparison-page">
+    <header class="comparison-hero">
+        <div>
+            <p class="eyebrow">ATLAS COMPARISON REPORT</p>
+            <h1>Legacy versus Atlas</h1>
+            <p>Compare the old collection rule engine with Atlas before the legacy path is retired. This report is read-only.</p>
+        </div>
+        <a class="back-link" href="/collection-rules">Back to Collection Builder</a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <section class="comparison-state">Loading comparison report...</section>
+    }
+    else if (_scan is null)
+    {
+        <section class="comparison-state">
+            <h2>No scan report available</h2>
+            <p>Run an archive scan before comparing legacy and Atlas recommendations.</p>
+            <a href="/dashboard">Open Dashboard</a>
+        </section>
+    }
+    else if (_report is null)
+    {
+        <section class="comparison-state">
+            <h2>Comparison unavailable</h2>
+            <p>The comparison report could not be generated.</p>
+        </section>
+    }
+    else
+    {
+        <section class="comparison-toolbar">
+            <label>
+                Collection mode
+                <select value="@_mode" @onchange="ChangeModeAsync">
+                    <option value="@OneGameOneRomMode.AllGames">All Games</option>
+                    <option value="@OneGameOneRomMode.EnglishOnly">English Only</option>
+                </select>
+            </label>
+            <label>
+                Filter
+                <select value="@_filter" @onchange="ChangeFilter">
+                    <option value="@AtlasComparisonFilter.All">All</option>
+                    <option value="@AtlasComparisonFilter.AgreementsOnly">Agreements only</option>
+                    <option value="@AtlasComparisonFilter.DisagreementsOnly">Disagreements only</option>
+                </select>
+            </label>
+            <label class="search-control">
+                Search
+                <input value="@_searchText" @oninput="ChangeSearch" placeholder="Title or filename" />
+            </label>
+            <a class="csv-link" href="@_csvHref" download="atlas-comparison-report.csv">Export CSV</a>
+        </section>
+
+        <section class="comparison-summary" aria-label="Comparison summary">
+            <article><span>Total groups</span><strong>@_report.ComparedGroupCount.ToString("N0")</strong></article>
+            <article><span>Engines agree</span><strong>@_report.AgreementCount.ToString("N0")</strong></article>
+            <article><span>Engines disagree</span><strong>@_report.DifferenceCount.ToString("N0")</strong></article>
+            <article><span>Agreement</span><strong>@_report.AgreementPercentage.ToString("0.0")%</strong></article>
+            <article><span>English-only excluded</span><strong>@_report.EnglishOnlyExcludedCount.ToString("N0")</strong></article>
+        </section>
+
+        @if (_filteredRows.Count == 0)
+        {
+            <section class="comparison-state">
+                <h2>No comparison rows match</h2>
+                <p>Clear the search field or change the agreement filter.</p>
+            </section>
+        }
+        else
+        {
+            <section class="comparison-table-wrap">
+                <div class="comparison-table" role="table" aria-label="Atlas comparison rows">
+                    <div class="comparison-row header" role="row">
+                        <span>Game/title</span>
+                        <span>Legacy winner</span>
+                        <span>Atlas winner</span>
+                        <span>Agreement</span>
+                        <span>Atlas deciding rule</span>
+                        <span>Legacy explanation</span>
+                    </div>
+                    @foreach (var row in _filteredRows)
+                    {
+                        <div class="comparison-row agree-@row.EnginesAgree.ToString().ToLowerInvariant()" role="row">
+                            <span><strong>@row.Title</strong></span>
+                            <span>@Display(row.LegacyWinner)</span>
+                            <span>@Display(row.AtlasWinner)</span>
+                            <span><b>@(row.EnginesAgree ? "Agree" : "Disagree")</b></span>
+                            <span>@Display(row.AtlasDecidingRule)</span>
+                            <span>@Display(row.LegacyExplanation)</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    }
+</main>
+
+@code {
+    private bool _isLoading = true;
+    private ArchiveScanResult? _scan;
+    private AtlasComparisonReport? _report;
+    private IReadOnlyList<AtlasComparisonRow> _filteredRows = [];
+    private string _csvHref = "data:text/csv;charset=utf-8,";
+    private OneGameOneRomMode _mode = OneGameOneRomMode.AllGames;
+    private AtlasComparisonFilter _filter = AtlasComparisonFilter.All;
+    private string _searchText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _scan = await ScanReportService.LoadLatestAsync();
+        if (_scan is not null)
+        {
+            await RefreshComparisonAsync();
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task RefreshComparisonAsync()
+    {
+        var profile = await AtlasProfiles.GetActiveProfileAsync();
+        var options = profile.ToOptions(_mode);
+        _report = AtlasComparisonService.Compare(_scan!, options);
+        RefreshFilteredRows();
+    }
+
+    private async Task ChangeModeAsync(ChangeEventArgs args)
+    {
+        if (Enum.TryParse<OneGameOneRomMode>(args.Value?.ToString(), out var mode))
+        {
+            _mode = mode;
+            await RefreshComparisonAsync();
+        }
+    }
+
+    private void ChangeFilter(ChangeEventArgs args)
+    {
+        if (Enum.TryParse<AtlasComparisonFilter>(args.Value?.ToString(), out var filter))
+        {
+            _filter = filter;
+            RefreshFilteredRows();
+        }
+    }
+
+    private void ChangeSearch(ChangeEventArgs args)
+    {
+        _searchText = args.Value?.ToString() ?? string.Empty;
+        RefreshFilteredRows();
+    }
+
+    private void RefreshFilteredRows()
+    {
+        _filteredRows = _report is null
+            ? []
+            : AtlasComparisonReportFormatter.FilterRows(_report, _filter, _searchText);
+        _csvHref = $"data:text/csv;charset=utf-8,{Uri.EscapeDataString(AtlasComparisonReportFormatter.ToCsv(_filteredRows))}";
+    }
+
+    private static string Display(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Excluded" : value;
+}
