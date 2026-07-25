@@ -218,12 +218,24 @@
                     }
                 </div>
 
+                <section class="diagnostics-strip" aria-label="1G1R diagnostics">
+                    <article><span>Total ROMs loaded</span><strong>@_preview.Diagnostics.TotalRomsLoaded.ToString("N0")</strong></article>
+                    <article><span>Valid filenames</span><strong>@_preview.Diagnostics.ValidFilenames.ToString("N0")</strong></article>
+                    <article><span>Normalized titles</span><strong>@_preview.Diagnostics.NormalizedTitles.ToString("N0")</strong></article>
+                    <article><span>Unique title groups</span><strong>@_preview.Diagnostics.UniqueTitleGroups.ToString("N0")</strong></article>
+                    <article><span>Single-ROM groups</span><strong>@_preview.Diagnostics.SingleRomGroups.ToString("N0")</strong></article>
+                    <article><span>Multi-ROM groups</span><strong>@_preview.Diagnostics.MultiRomGroups.ToString("N0")</strong></article>
+                    <article><span>Rejected before Atlas</span><strong>@_preview.Diagnostics.GroupsRejectedBeforeAtlas.ToString("N0")</strong></article>
+                    <article><span>English-only excluded</span><strong>@_preview.Diagnostics.GroupsExcludedByEnglishOnlyMode.ToString("N0")</strong></article>
+                    <article><span>Final recommendations</span><strong>@_preview.Diagnostics.FinalRecommendations.ToString("N0")</strong></article>
+                </section>
+
                 @if (_preview.Selections.Count == 0)
                 {
                     <div class="empty-preview">
                         <span aria-hidden="true">✨</span>
-                        <h3>No duplicate release groups need a decision.</h3>
-                        <p>Your scan did not find matching release groups for this mode.</p>
+                        <h3>No 1G1R groups are available for this mode.</h3>
+                        <p>Your scan did not find eligible title groups for the selected mode.</p>
                     </div>
                 }
                 else

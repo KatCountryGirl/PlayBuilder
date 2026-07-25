@@ -31,8 +31,10 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
         ArgumentNullException.ThrowIfNull(options);
 
         var preview = new CollectionRulePreview();
+        var groups = GetOneGameOneRomGroups(scan);
+        preview.Diagnostics = BuildInitialDiagnostics(scan, groups);
 
-        foreach (var group in scan.DuplicateGroups)
+        foreach (var group in groups)
         {
             var candidates = group.Variants
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -48,6 +50,7 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
                 if (candidates.Count == 0)
                 {
                     preview.GroupsExcludedByLanguage++;
+                    preview.Diagnostics.GroupsExcludedByEnglishOnlyMode++;
                     continue;
                 }
             }
@@ -59,6 +62,7 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
 
             if (candidates.Count == 0)
             {
+                preview.Diagnostics.GroupsRejectedBeforeAtlas++;
                 continue;
             }
 
@@ -82,12 +86,32 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
             else preview.ConfidentSelections++;
         }
 
+        preview.Diagnostics.FinalRecommendations = preview.Selections.Count;
         preview.Selections = preview.Selections
             .OrderBy(selection => selection.IsFallback)
             .ThenBy(selection => selection.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         return preview;
+    }
+
+    private static IReadOnlyList<DuplicateGroupSummary> GetOneGameOneRomGroups(ArchiveScanResult scan) =>
+        scan.OneGameOneRomGroups.Count > 0 ? scan.OneGameOneRomGroups : scan.DuplicateGroups;
+
+    private static CollectionRuleDiagnostics BuildInitialDiagnostics(
+        ArchiveScanResult scan,
+        IReadOnlyList<DuplicateGroupSummary> groups)
+    {
+        var validFilenames = groups.Sum(group => group.FileCount);
+        return new CollectionRuleDiagnostics
+        {
+            TotalRomsLoaded = scan.RecognizedFileCount,
+            ValidFilenames = validFilenames,
+            NormalizedTitles = groups.Count,
+            UniqueTitleGroups = groups.Count,
+            SingleRomGroups = groups.Count(group => group.FileCount == 1),
+            MultiRomGroups = groups.Count(group => group.FileCount > 1)
+        };
     }
 
     private static Candidate Score(string name, CollectionRuleOptions options)

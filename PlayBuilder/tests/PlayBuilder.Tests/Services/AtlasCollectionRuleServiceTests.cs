@@ -13,7 +13,7 @@ public sealed class AtlasCollectionRuleServiceTests
         var service = CreateService();
         var scan = new ArchiveScanResult
         {
-            DuplicateGroups =
+            OneGameOneRomGroups =
             [
                 new DuplicateGroupSummary
                 {
@@ -39,7 +39,7 @@ public sealed class AtlasCollectionRuleServiceTests
         var service = CreateService();
         var scan = new ArchiveScanResult
         {
-            DuplicateGroups =
+            OneGameOneRomGroups =
             [
                 new DuplicateGroupSummary
                 {
@@ -61,7 +61,7 @@ public sealed class AtlasCollectionRuleServiceTests
         var service = CreateService();
         var scan = new ArchiveScanResult
         {
-            DuplicateGroups =
+            OneGameOneRomGroups =
             [
                 new DuplicateGroupSummary
                 {
@@ -112,6 +112,98 @@ public sealed class AtlasCollectionRuleServiceTests
                 Assert.Equal("Japan", candidate.Region);
                 Assert.Equal("Known bad dump", candidate.DumpQuality);
             });
+    }
+
+    [Fact]
+    public void BuildPreview_RecommendsLargeSetOfSingletonTitles()
+    {
+        var service = CreateService();
+        var scan = new ArchiveScanResult
+        {
+            RecognizedFileCount = 1_000,
+            OneGameOneRomGroups = Enumerable.Range(1, 1_000)
+                .Select(index => new DuplicateGroupSummary
+                {
+                    Title = $"Game {index}",
+                    FileCount = 1,
+                    Variants = [$"Game {index} (USA).zip"]
+                })
+                .ToList()
+        };
+
+        var preview = service.BuildPreview(scan, new CollectionRuleOptions());
+
+        Assert.Equal(1_000, preview.Selections.Count);
+        Assert.Equal(1_000, preview.DuplicateGroupsReviewed);
+        Assert.Equal(1_000, preview.Diagnostics.SingleRomGroups);
+        Assert.Equal(0, preview.Diagnostics.MultiRomGroups);
+        Assert.Equal(1_000, preview.Diagnostics.FinalRecommendations);
+    }
+
+    [Fact]
+    public void BuildPreview_HandlesMixedSingletonAndDuplicateGroupsInAllGamesMode()
+    {
+        var service = CreateService();
+        var scan = new ArchiveScanResult
+        {
+            RecognizedFileCount = 3,
+            OneGameOneRomGroups =
+            [
+                new DuplicateGroupSummary
+                {
+                    Title = "Solo Game",
+                    FileCount = 1,
+                    Variants = ["Solo Game (Japan).zip"]
+                },
+                new DuplicateGroupSummary
+                {
+                    Title = "Variant Game",
+                    FileCount = 2,
+                    Variants = ["Variant Game (Japan).zip", "Variant Game (USA).zip"]
+                }
+            ]
+        };
+
+        var preview = service.BuildPreview(scan, new CollectionRuleOptions());
+
+        Assert.Equal(2, preview.Selections.Count);
+        Assert.Contains(preview.Selections, selection => selection.RecommendedVariant == "Solo Game (Japan).zip");
+        Assert.Contains(preview.Selections, selection => selection.RecommendedVariant == "Variant Game (USA).zip");
+        Assert.Equal(1, preview.Diagnostics.SingleRomGroups);
+        Assert.Equal(1, preview.Diagnostics.MultiRomGroups);
+    }
+
+    [Fact]
+    public void BuildPreview_EnglishOnlyExcludesSingletonsWithoutEnglishCandidate()
+    {
+        var service = CreateService();
+        var scan = new ArchiveScanResult
+        {
+            RecognizedFileCount = 2,
+            OneGameOneRomGroups =
+            [
+                new DuplicateGroupSummary
+                {
+                    Title = "English Game",
+                    FileCount = 1,
+                    Variants = ["English Game (USA).zip"]
+                },
+                new DuplicateGroupSummary
+                {
+                    Title = "Japan Only",
+                    FileCount = 1,
+                    Variants = ["Japan Only (Japan).zip"]
+                }
+            ]
+        };
+
+        var preview = service.BuildPreview(scan, new CollectionRuleOptions { Mode = OneGameOneRomMode.EnglishOnly });
+
+        var selection = Assert.Single(preview.Selections);
+        Assert.Equal("English Game (USA).zip", selection.RecommendedVariant);
+        Assert.Equal(1, preview.GroupsExcludedByLanguage);
+        Assert.Equal(1, preview.Diagnostics.GroupsExcludedByEnglishOnlyMode);
+        Assert.Equal(1, preview.Diagnostics.FinalRecommendations);
     }
 
     private static AtlasCollectionRuleService CreateService()

@@ -21,18 +21,25 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
         ArgumentNullException.ThrowIfNull(options);
 
         var preview = new CollectionRulePreview { EngineName = "Atlas" };
+        var groups = GetOneGameOneRomGroups(scan);
+        preview.Diagnostics = BuildInitialDiagnostics(scan, groups);
 
-        foreach (var group in scan.DuplicateGroups)
+        foreach (var group in groups)
         {
             var candidates = _candidateFactory.CreateMany(group.Variants.Distinct(StringComparer.OrdinalIgnoreCase));
             if (options.Mode == OneGameOneRomMode.EnglishOnly &&
                 !candidates.Any(candidate => candidate.Metadata.Languages.Contains("English", StringComparer.OrdinalIgnoreCase)))
             {
                 preview.GroupsExcludedByLanguage++;
+                preview.Diagnostics.GroupsExcludedByEnglishOnlyMode++;
                 continue;
             }
 
-            if (candidates.Count == 0) continue;
+            if (candidates.Count == 0)
+            {
+                preview.Diagnostics.GroupsRejectedBeforeAtlas++;
+                continue;
+            }
 
             var decision = _decisionEngine.Evaluate(candidates, group.Title, options);
             var metadata = decision.Winner.Metadata;
@@ -57,12 +64,32 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
             if (fallback) preview.FallbackSelections++; else preview.ConfidentSelections++;
         }
 
+        preview.Diagnostics.FinalRecommendations = preview.Selections.Count;
         preview.Selections = preview.Selections
             .OrderBy(selection => selection.IsFallback)
             .ThenBy(selection => selection.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         return preview;
+    }
+
+    private static IReadOnlyList<DuplicateGroupSummary> GetOneGameOneRomGroups(ArchiveScanResult scan) =>
+        scan.OneGameOneRomGroups.Count > 0 ? scan.OneGameOneRomGroups : scan.DuplicateGroups;
+
+    private static CollectionRuleDiagnostics BuildInitialDiagnostics(
+        ArchiveScanResult scan,
+        IReadOnlyList<DuplicateGroupSummary> groups)
+    {
+        var validFilenames = groups.Sum(group => group.FileCount);
+        return new CollectionRuleDiagnostics
+        {
+            TotalRomsLoaded = scan.RecognizedFileCount,
+            ValidFilenames = validFilenames,
+            NormalizedTitles = groups.Count,
+            UniqueTitleGroups = groups.Count,
+            SingleRomGroups = groups.Count(group => group.FileCount == 1),
+            MultiRomGroups = groups.Count(group => group.FileCount > 1)
+        };
     }
 
     private static string BuildSummary(AtlasDecision decision, CollectionRuleOptions options)

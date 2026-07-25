@@ -40,6 +40,11 @@ h2 { margin: 0; font-size: clamp(1.55rem,3vw,2.15rem); }
 .summary-grid span { color: var(--pb-text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .07em; }
 .summary-grid strong { margin: .35rem 0; font-size: 1.7rem; }
 .summary-grid small { color: var(--pb-text-muted); }
+.diagnostics-strip{margin-top:.9rem;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:8px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.025)}
+.diagnostics-strip article{min-width:0;padding:7px 8px;border-radius:8px;background:rgba(0,0,0,.12)}
+.diagnostics-strip span,.diagnostics-strip strong{display:block}
+.diagnostics-strip span{color:var(--pb-text-muted);font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.diagnostics-strip strong{margin-top:2px;font-size:.95rem}
 .selection-list { margin-top: 1rem; display: grid; gap: .65rem; }
 .selection-card { border: 1px solid var(--pb-border); border-radius: 15px; background: rgba(255,255,255,.025); overflow: hidden; }
 .selection-card.fallback-true { border-color: rgba(255,196,87,.28); background: rgba(255,196,87,.035); }
@@ -67,7 +72,7 @@ h2 { margin: 0; font-size: clamp(1.55rem,3vw,2.15rem); }
 .state-card h1 { margin: 1rem auto; font-size: clamp(2rem,5vw,3.5rem); }
 .state-card p { color: var(--pb-text-muted); line-height: 1.6; }
 .version-label { width: 100%; margin: 1.25rem 0 0; color: rgba(255,255,255,.4); font-size: .78rem; text-align: right; }
-@media (max-width: 900px) { .rule-layout { grid-template-columns: 1fr; } .rules-panel { position: static; } .summary-grid { grid-template-columns: 1fr; } .rules-hero, .next-step-card { align-items: flex-start; flex-direction: column; } .hero-icon { order: -1; } }
+@media (max-width: 900px) { .rule-layout { grid-template-columns: 1fr; } .rules-panel { position: static; } .summary-grid { grid-template-columns: 1fr; } .diagnostics-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.rules-hero, .next-step-card { align-items: flex-start; flex-direction: column; } .hero-icon { order: -1; } }
 @media (max-width: 620px) { .rules-header, .preview-heading { align-items: flex-start; flex-direction: column; } .header-actions { width: 100%; justify-content: flex-start; } .selection-card summary { grid-template-columns: auto minmax(0,1fr); } .region-pill { grid-column: 2; justify-self: start; } .alternatives { padding-left: 1rem; } }
 
 /* v0.0.8 Atlas additions */
@@ -209,6 +214,8 @@ h2 { margin: 0; font-size: clamp(1.55rem,3vw,2.15rem); }
 .summary-grid span { font-size:.62rem; }
 .summary-grid strong { margin:3px 0; font-size:1.25rem; }
 .summary-grid small { font-size:.64rem; }
+.diagnostics-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+.diagnostics-strip span{font-size:.55rem}.diagnostics-strip strong{font-size:.86rem}
 .selection-list { margin-top:10px; gap:7px; }
 .selection-card { border-radius:11px; }
 .selection-card summary { padding:9px 10px; gap:8px; }

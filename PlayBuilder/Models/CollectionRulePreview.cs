@@ -44,7 +44,21 @@ public sealed class CollectionRulePreview
     public int FallbackSelections { get; set; }
     public int AlternativesExcluded { get; set; }
     public int GroupsExcludedByLanguage { get; set; }
+    public CollectionRuleDiagnostics Diagnostics { get; set; } = new();
     public List<GameSelectionPreview> Selections { get; set; } = [];
+}
+
+public sealed class CollectionRuleDiagnostics
+{
+    public long TotalRomsLoaded { get; set; }
+    public long ValidFilenames { get; set; }
+    public int NormalizedTitles { get; set; }
+    public int UniqueTitleGroups { get; set; }
+    public int SingleRomGroups { get; set; }
+    public int MultiRomGroups { get; set; }
+    public int GroupsRejectedBeforeAtlas { get; set; }
+    public int GroupsExcludedByEnglishOnlyMode { get; set; }
+    public int FinalRecommendations { get; set; }
 }
 
 public sealed class GameSelectionPreview

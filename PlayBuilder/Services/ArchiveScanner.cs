@@ -109,6 +109,7 @@ public sealed partial class ArchiveScanner : IArchiveScanner
         var languages = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var specialTags = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var titleGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var oneGameOneRomGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var discGroups = new Dictionary<string, List<(int Disc, string File)>>(StringComparer.OrdinalIgnoreCase);
         var catalog = new List<Game>();
         var stopwatch = Stopwatch.StartNew();
@@ -184,6 +185,19 @@ public sealed partial class ArchiveScanner : IArchiveScanner
                 }
                 variants.Add(displayTitle);
 
+                var oneGameOneRomTitle = NormalizeOneGameOneRomTitle(displayTitle);
+                if (string.IsNullOrWhiteSpace(oneGameOneRomTitle))
+                {
+                    oneGameOneRomTitle = normalizedTitle;
+                }
+
+                if (!oneGameOneRomGroups.TryGetValue(oneGameOneRomTitle, out var oneGameOneRomVariants))
+                {
+                    oneGameOneRomVariants = [];
+                    oneGameOneRomGroups[oneGameOneRomTitle] = oneGameOneRomVariants;
+                }
+                oneGameOneRomVariants.Add(displayTitle);
+
                 var discNumber = 0;
                 var discMatch = DiscRegex().Match(displayTitle);
                 if (discMatch.Success && int.TryParse(discMatch.Groups[1].Value, out var parsedDiscNumber))
@@ -239,6 +253,19 @@ public sealed partial class ArchiveScanner : IArchiveScanner
         result.Regions = ToRegionSummaries(regions);
         result.Languages = ToMetadataSummaries(languages);
         result.SpecialTags = ToMetadataSummaries(specialTags);
+
+        result.OneGameOneRomGroups = oneGameOneRomGroups
+            .Select(item => new DuplicateGroupSummary
+            {
+                Title = ToDisplayTitle(item.Key),
+                FileCount = item.Value.Count,
+                Variants = item.Value
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            })
+            .OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         result.DuplicateGroups = titleGroups
             .Where(item => item.Value.Distinct(StringComparer.OrdinalIgnoreCase).Skip(1).Any())
@@ -423,6 +450,18 @@ public sealed partial class ArchiveScanner : IArchiveScanner
     {
         var withoutDisc = DiscRegex().Replace(fileNameWithoutExtension, " ");
         var withoutTags = ParentheticalTagRegex().Replace(withoutDisc, " ");
+        var withoutRevision = RevisionRegex().Replace(withoutTags, " ");
+        var normalized = NonAlphaNumericRegex().Replace(withoutRevision, " ");
+        return WhitespaceRegex().Replace(normalized, " ").Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeOneGameOneRomTitle(string fileNameWithoutExtension)
+    {
+        var withDiscIdentity = DiscRegex().Replace(fileNameWithoutExtension, match =>
+            int.TryParse(match.Groups[1].Value, out var discNumber)
+                ? $" disc {discNumber} "
+                : " ");
+        var withoutTags = ParentheticalTagRegex().Replace(withDiscIdentity, " ");
         var withoutRevision = RevisionRegex().Replace(withoutTags, " ");
         var normalized = NonAlphaNumericRegex().Replace(withoutRevision, " ");
         return WhitespaceRegex().Replace(normalized, " ").Trim().ToLowerInvariant();

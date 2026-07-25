@@ -117,7 +117,7 @@ public sealed class AtlasComparisonServiceTests
     {
         return new ArchiveScanResult
         {
-            DuplicateGroups =
+            OneGameOneRomGroups =
             [
                 new DuplicateGroupSummary
                 {
@@ -127,5 +127,44 @@ public sealed class AtlasComparisonServiceTests
                 }
             ]
         };
+    }
+
+    [Fact]
+    public void Compare_UsesAllOneGameOneRomGroupsIncludingSingletons()
+    {
+        var service = CreateService();
+        var scan = new ArchiveScanResult
+        {
+            DuplicateGroups =
+            [
+                new DuplicateGroupSummary
+                {
+                    Title = "Variant Game",
+                    FileCount = 2,
+                    Variants = ["Variant Game (Japan).zip", "Variant Game (USA).zip"]
+                }
+            ],
+            OneGameOneRomGroups =
+            [
+                new DuplicateGroupSummary
+                {
+                    Title = "Solo Game",
+                    FileCount = 1,
+                    Variants = ["Solo Game (USA).zip"]
+                },
+                new DuplicateGroupSummary
+                {
+                    Title = "Variant Game",
+                    FileCount = 2,
+                    Variants = ["Variant Game (Japan).zip", "Variant Game (USA).zip"]
+                }
+            ]
+        };
+
+        var report = service.Compare(scan, new CollectionRuleOptions());
+
+        Assert.Equal(2, report.ComparedGroupCount);
+        Assert.Contains(report.Rows, row => row.Title == "Solo Game" && row.AtlasWinner == "Solo Game (USA).zip");
+        Assert.Contains(report.Rows, row => row.Title == "Variant Game" && row.AtlasWinner == "Variant Game (USA).zip");
     }
 }

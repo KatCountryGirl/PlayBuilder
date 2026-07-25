@@ -31,7 +31,7 @@ public sealed class AtlasComparisonService : IAtlasComparisonService
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
         var report = new AtlasComparisonReport();
-        foreach (var group in scan.DuplicateGroups)
+        foreach (var group in GetOneGameOneRomGroups(scan))
         {
             legacySelections.TryGetValue(group.Title, out var legacySelection);
             var atlasDecision = EvaluateAtlas(group, options);
@@ -52,6 +52,9 @@ public sealed class AtlasComparisonService : IAtlasComparisonService
 
         return report;
     }
+
+    private static IReadOnlyList<DuplicateGroupSummary> GetOneGameOneRomGroups(ArchiveScanResult scan) =>
+        scan.OneGameOneRomGroups.Count > 0 ? scan.OneGameOneRomGroups : scan.DuplicateGroups;
 
     private AtlasDecision? EvaluateAtlas(DuplicateGroupSummary group, CollectionRuleOptions options)
     {
