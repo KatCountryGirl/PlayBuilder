@@ -30,3 +30,4 @@ Every coding milestone must:
 - Use deterministic rules with human-readable explanations.
 - Prefer tokenizer and parser pipelines over giant regex-only parsers.
 - Preserve working legacy behavior until its replacement is tested and integrated.
+- Treat duplicate groups as same-system alternate releases, not matching titles across different systems.

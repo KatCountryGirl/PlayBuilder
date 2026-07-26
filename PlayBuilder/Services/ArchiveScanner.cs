@@ -108,8 +108,8 @@ public sealed partial class ArchiveScanner : IArchiveScanner
         var regions = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var languages = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var specialTags = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        var titleGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        var oneGameOneRomGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var duplicateCandidates = new List<(string SystemName, string NormalizedTitle, string DisplayTitle)>();
+        var oneGameOneRomCandidates = new List<(string SystemName, string NormalizedTitle, string DisplayTitle)>();
         var discGroups = new Dictionary<string, List<(int Disc, string File)>>(StringComparer.OrdinalIgnoreCase);
         var catalog = new List<Game>();
         var stopwatch = Stopwatch.StartNew();
@@ -150,7 +150,8 @@ public sealed partial class ArchiveScanner : IArchiveScanner
                 }
 
                 result.RecognizedFileCount++;
-                Increment(systems, GetSystemName(root, filePath));
+                var systemName = GetSystemName(root, filePath);
+                Increment(systems, systemName);
                 Increment(extensions, extension.ToLowerInvariant());
 
                 var displayTitle = Path.GetFileNameWithoutExtension(currentFile);
@@ -172,31 +173,21 @@ public sealed partial class ArchiveScanner : IArchiveScanner
                     }
                 }
 
-                var normalizedTitle = NormalizeTitle(displayTitle);
+                var normalizedTitle = GameTitleIdentity.NormalizeTitle(displayTitle);
                 if (string.IsNullOrWhiteSpace(normalizedTitle))
                 {
                     normalizedTitle = displayTitle.Trim().ToLowerInvariant();
                 }
 
-                if (!titleGroups.TryGetValue(normalizedTitle, out var variants))
-                {
-                    variants = [];
-                    titleGroups[normalizedTitle] = variants;
-                }
-                variants.Add(displayTitle);
+                duplicateCandidates.Add((systemName, normalizedTitle, displayTitle));
 
-                var oneGameOneRomTitle = NormalizeOneGameOneRomTitle(displayTitle);
+                var oneGameOneRomTitle = GameTitleIdentity.NormalizeOneGameOneRomTitle(displayTitle);
                 if (string.IsNullOrWhiteSpace(oneGameOneRomTitle))
                 {
                     oneGameOneRomTitle = normalizedTitle;
                 }
 
-                if (!oneGameOneRomGroups.TryGetValue(oneGameOneRomTitle, out var oneGameOneRomVariants))
-                {
-                    oneGameOneRomVariants = [];
-                    oneGameOneRomGroups[oneGameOneRomTitle] = oneGameOneRomVariants;
-                }
-                oneGameOneRomVariants.Add(displayTitle);
+                oneGameOneRomCandidates.Add((systemName, oneGameOneRomTitle, displayTitle));
 
                 var discNumber = 0;
                 var discMatch = DiscRegex().Match(displayTitle);
@@ -204,7 +195,7 @@ public sealed partial class ArchiveScanner : IArchiveScanner
                 {
                     discNumber = parsedDiscNumber;
                     var baseTitle = DiscRegex().Replace(displayTitle, " ");
-                    baseTitle = NormalizeTitle(baseTitle);
+                    baseTitle = GameTitleIdentity.NormalizeTitle(baseTitle);
                     if (!discGroups.TryGetValue(baseTitle, out var discs))
                     {
                         discs = [];
@@ -215,11 +206,9 @@ public sealed partial class ArchiveScanner : IArchiveScanner
 
                 var revisionMatch = RevisionRegex().Match(displayTitle);
                 var revision = revisionMatch.Success ? revisionMatch.Value.Trim(' ', '(', ')', '[', ']') : string.Empty;
-                var systemName = GetSystemName(root, filePath);
-
                 catalog.Add(new Game
                 {
-                    Title = CleanDisplayTitle(displayTitle),
+                    Title = GameTitleIdentity.CleanDisplayTitle(displayTitle),
                     SortTitle = normalizedTitle,
                     System = systemName,
                     Region = region,
@@ -254,35 +243,13 @@ public sealed partial class ArchiveScanner : IArchiveScanner
         result.Languages = ToMetadataSummaries(languages);
         result.SpecialTags = ToMetadataSummaries(specialTags);
 
-        result.OneGameOneRomGroups = oneGameOneRomGroups
-            .Select(item => new DuplicateGroupSummary
-            {
-                Title = ToDisplayTitle(item.Key),
-                FileCount = item.Value.Count,
-                Variants = item.Value
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                    .ToList()
-            })
-            .OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        result.OneGameOneRomGroups = DuplicateGrouping.BuildOneGameOneRomGroups(oneGameOneRomCandidates);
 
-        result.DuplicateGroups = titleGroups
-            .Where(item => item.Value.Distinct(StringComparer.OrdinalIgnoreCase).Skip(1).Any())
-            .Select(item => new DuplicateGroupSummary
-            {
-                Title = ToDisplayTitle(item.Key),
-                FileCount = item.Value.Count,
-                Variants = item.Value
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                    .Take(12)
-                    .ToList()
-            })
-            .OrderByDescending(item => item.FileCount)
-            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
-            .Take(250)
-            .ToList();
+        result.DuplicateGroups = DuplicateGrouping.BuildDuplicateGroups(duplicateCandidates, take: 250);
+        foreach (var group in result.DuplicateGroups)
+        {
+            group.Variants = group.Variants.Take(12).ToList();
+        }
 
         result.MultiDiscGroups = discGroups
             .Where(item => item.Value.Select(value => value.Disc).Distinct().Count() > 1)

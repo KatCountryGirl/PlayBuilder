@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Library duplicate status filtering now narrows results to same-system duplicate groups, needs-review releases, or healthy releases.
 - Scans now continue in an application-level background session when users leave or refresh the Scan Games page.
 - Scan Games now has Browse buttons for the source Game folder and destination folder.
 - Library now has a wider, collapsible, resizable Systems panel plus a System filter and system-name search.
@@ -18,6 +19,9 @@
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- Duplicate groups are now scoped by canonical system plus normalized game title, so matching titles on different systems are no longer counted or displayed as duplicates.
+- Library now uses a stable wider Systems column instead of the collapsible drawer-style panel.
+- Older saved scan reports with title-only duplicate groups are repaired from the SQLite catalog when loaded, without changing source game files.
 - User-facing copy now uses Game or Game file instead of legacy technical wording where technical naming is not required.
 - Scan Games now explains Frontend as the destination layout choice for finished collections.
 - Build Preview creation from Collection Builder now uses the user's checked recommendation selections while leaving Atlas recommendations unchanged.

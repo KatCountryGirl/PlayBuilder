@@ -10,7 +10,9 @@ The Scan Games page is available again from the sidebar. New users can choose a 
 
 Scans now continue in the background if the user leaves or refreshes Scan Games. Returning to the page shows the current status, progress, cancellation control, and last completed summary. Browse buttons help choose source and destination folders while keeping manual path entry available.
 
-The Library Systems panel is wider, collapsible, and resizable during the current session. The Library filters now include System, and search covers titles, filenames, and system names.
+The Library Systems panel now uses a stable wider desktop column instead of a collapsible drawer. The Library filters include System and duplicate status, and search covers titles, filenames, and system names. On narrower browser widths, the Systems section stacks above the game table so it does not slide under the main application navigation.
+
+Duplicate groups now mean groups of two or more releases that appear to represent the same game on the same canonical system. Matching titles on different systems, such as the same game name on SNES and Genesis, are kept separate. Older saved scan reports that do not include system-scoped group keys are repaired from the SQLite catalog when loaded.
 
 Collection Builder now uses real checkboxes for reviewed recommendations. Every Atlas recommendation starts selected, users can exclude individual games, selection state survives filtering, and Build Preview uses the checked set without changing Atlas decisions. Summary cards now filter confident choices, needs-review items, and extra versions for faster review.
 
@@ -27,6 +29,8 @@ The source archive remains untouched. This release only previews recommendations
 - Confirm a scan continues after navigating away from Scan Games and returning.
 - Confirm Scan Games Browse buttons open a folder picker on Windows.
 - Confirm Library system filtering and system-name search work alongside the Systems panel.
+- Confirm matching titles on different systems are not counted as duplicate groups.
+- Confirm the Library duplicate-status filter only shows same-system alternate releases.
 - Confirm the heading identifies Atlas and expanded recommendations show decision reasons.
 - Confirm Collection Builder selections can be checked, unchecked, reset, and sent to Build Preview.
 - Confirm Ask Atlas content changes as the user moves between the main navigation pages.

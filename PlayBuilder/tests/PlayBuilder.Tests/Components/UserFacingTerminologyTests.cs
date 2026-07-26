@@ -24,6 +24,20 @@ public sealed class UserFacingTerminologyTests
     }
 
     [Fact]
+    public void LibraryPage_UsesStableSystemsPanelWithoutCollapseDrawer()
+    {
+        var source = ReadPage("Library.razor");
+        var styles = File.ReadAllText(Path.Combine(ProjectRoot(), "Components", "Pages", "Library.razor.css"));
+
+        Assert.Contains("systems-panel", source);
+        Assert.Contains("Filter by system", source);
+        Assert.DoesNotContain("ToggleSystemsPanel", source);
+        Assert.DoesNotContain("_systemsCollapsed", source);
+        Assert.Contains("grid-template-columns: minmax(330px, 380px) minmax(520px, 1fr) 350px", styles);
+        Assert.Contains("display: block", styles);
+    }
+
+    [Fact]
     public void AskAtlasScanHelp_ExplainsFrontendAndGameTerminology()
     {
         var text = Flatten(AtlasHelpContent.Get("scan"));
@@ -38,6 +52,11 @@ public sealed class UserFacingTerminologyTests
 
     private static string ReadPage(string filename)
     {
+        return File.ReadAllText(Path.Combine(ProjectRoot(), "Components", "Pages", filename));
+    }
+
+    private static string ProjectRoot()
+    {
         var root = Directory.GetCurrentDirectory();
         while (!File.Exists(Path.Combine(root, "PlayBuilder.csproj")))
         {
@@ -45,7 +64,7 @@ public sealed class UserFacingTerminologyTests
                 ?? throw new InvalidOperationException("Could not find PlayBuilder project root.");
         }
 
-        return File.ReadAllText(Path.Combine(root, "Components", "Pages", filename));
+        return root;
     }
 
     private static string Flatten(AtlasHelpPage page) =>

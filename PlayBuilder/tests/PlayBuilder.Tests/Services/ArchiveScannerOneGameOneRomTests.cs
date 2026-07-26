@@ -63,11 +63,113 @@ public sealed class ArchiveScannerOneGameOneRomTests
         }
     }
 
+    [Fact]
+    public async Task ScanAsync_DoesNotGroupSameTitleAcrossDifferentSystems()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            Touch(root, "Nintendo - Super Nintendo Entertainment System", "Aladdin (USA).sfc");
+            Touch(root, "Sega Genesis", "Aladdin (USA).gen");
+
+            var scanner = new ArchiveScanner(factory);
+            var result = await scanner.ScanAsync(root);
+
+            Assert.Equal(2, result.OneGameOneRomGroups.Count);
+            Assert.Empty(result.DuplicateGroups);
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScanAsync_GroupsSameTitleWithinSameSystemAsDuplicate()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            Touch(root, "Nintendo - Super Nintendo Entertainment System", "Super Mario World (USA).sfc");
+            Touch(root, "Nintendo - Super Nintendo Entertainment System", "Super Mario World (Europe).sfc");
+
+            var scanner = new ArchiveScanner(factory);
+            var result = await scanner.ScanAsync(root);
+
+            var group = Assert.Single(result.DuplicateGroups);
+            Assert.Equal("Super Mario World", group.Title);
+            Assert.Equal("nintendo-super-nintendo-entertainment-system", group.SystemKey);
+            Assert.Equal(2, group.FileCount);
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScanAsync_GroupsCanonicalSystemAliasesTogether()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            Touch(root, "SNES", "EarthBound (USA).sfc");
+            Touch(root, "Nintendo - Super Nintendo Entertainment System", "EarthBound (Europe).sfc");
+
+            var scanner = new ArchiveScanner(factory);
+            var result = await scanner.ScanAsync(root);
+
+            var group = Assert.Single(result.DuplicateGroups);
+            Assert.Equal("Earthbound", group.Title);
+            Assert.Equal("nintendo-super-nintendo-entertainment-system", group.SystemKey);
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScanAsync_KeepsDifferentTitlesOnSameSystemSeparate()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            Touch(root, "Sega Genesis", "Sonic the Hedgehog (USA).gen");
+            Touch(root, "Sega Genesis", "Streets of Rage (USA).gen");
+
+            var scanner = new ArchiveScanner(factory);
+            var result = await scanner.ScanAsync(root);
+
+            Assert.Equal(2, result.OneGameOneRomGroups.Count);
+            Assert.Empty(result.DuplicateGroups);
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), $"PlayBuilderScannerTests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static void Touch(string root, string system, string fileName)
+    {
+        var directory = Path.Combine(root, system);
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, fileName), string.Empty);
     }
 
     private static void CreateRom(string root, string fileName) =>

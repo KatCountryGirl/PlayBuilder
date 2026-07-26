@@ -16,7 +16,7 @@ public static class AtlasHelpContent
         ["Use the summary cards to check scan status.", "Open Scan Games when your Game folder changes.", "Open Collections when you are ready to review recommendations."],
         "Scan your games or choose a collection type.",
         "Home is read-only. It never changes game files.",
-        ["Game file count is the number of files found.", "Duplicate groups are only titles with multiple possible copies."]);
+        ["Game file count is the number of files found.", "Duplicate groups are groups of two or more releases that appear to represent the same game on the same system. Matching titles on different systems are kept separate."]);
 
     private static readonly Dictionary<string, AtlasHelpPage> Pages = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -31,7 +31,7 @@ public static class AtlasHelpContent
         ["library"] = new(
             "Library",
             "Library lets you browse the games found during the latest scan.",
-            ["The Systems panel lets you browse one platform at a time and can be resized or collapsed.", "System, region, language, and format filters narrow the list.", "Search finds game titles, filenames, and system names.", "Duplicate release indicators show titles with more than one detected release.", "Favorite stars mark games for a Favorites collection."],
+            ["The wider Systems panel lets you browse one platform at a time without hiding normal console names.", "System, region, language, format, and duplicate-status filters narrow the list.", "Search finds game titles, filenames, and system names.", "Duplicate groups are groups of two or more releases that appear to represent the same game on the same system. Matching titles on different systems are kept separate.", "Duplicate release indicators show titles with more than one detected release on that system.", "Favorite stars mark games for a Favorites collection."],
             "Favorite games or return to Collections.",
             "Browsing and favoriting do not alter source game files.",
             ["A game can appear once per scanned file.", "The System filter and Systems panel use the same selection.", "Unknown metadata usually means the filename did not include a clear tag."]),

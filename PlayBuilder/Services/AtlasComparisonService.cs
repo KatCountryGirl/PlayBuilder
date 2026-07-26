@@ -28,12 +28,16 @@ public sealed class AtlasComparisonService : IAtlasComparisonService
         var legacyPreview = _legacyService.BuildPreview(scan, options);
         var legacySelections = legacyPreview.Selections
             .GroupBy(selection => selection.Title, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                group => group.Key,
+                group => new Queue<GameSelectionPreview>(group),
+                StringComparer.OrdinalIgnoreCase);
 
         var report = new AtlasComparisonReport();
         foreach (var group in GetOneGameOneRomGroups(scan))
         {
-            legacySelections.TryGetValue(group.Title, out var legacySelection);
+            legacySelections.TryGetValue(group.Title, out var queuedSelections);
+            var legacySelection = queuedSelections?.Count > 0 ? queuedSelections.Dequeue() : null;
             var atlasDecision = EvaluateAtlas(group, options);
             var atlasWinner = atlasDecision?.Winner.Metadata.FileName;
             var legacyWinner = legacySelection?.RecommendedVariant;
