@@ -130,7 +130,7 @@
     min-height: calc(100vh - 235px);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: var(--systems-panel-width, 310px) minmax(520px, 1fr) 350px;
+    grid-template-columns: minmax(330px, 380px) minmax(520px, 1fr) 350px;
     border: 1px solid var(--pb-border);
     border-radius: 22px;
     overflow: hidden;
@@ -147,14 +147,6 @@
 .systems-panel {
     padding: 1rem;
     border-right: 1px solid var(--pb-border);
-}
-
-.systems-collapsed .systems-panel {
-    padding: 1rem .65rem;
-}
-
-.library-workspace.systems-collapsed {
-    grid-template-columns: 72px minmax(520px, 1fr) 350px;
 }
 
 .details-panel {
@@ -183,40 +175,6 @@
 .details-section-heading > span {
     color: var(--pb-text-muted);
     font-size: .78rem;
-}
-
-.systems-panel-tools {
-    display: flex;
-    align-items: center;
-    gap: .45rem;
-    color: var(--pb-text-muted);
-    font-size: .78rem;
-}
-
-.systems-panel-tools button {
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--pb-border);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, .04);
-    color: var(--pb-text);
-    cursor: pointer;
-}
-
-.systems-width-control {
-    display: grid;
-    gap: .25rem;
-    margin: 0 .35rem .65rem;
-    color: var(--pb-text-muted);
-    font-size: .68rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-}
-
-.systems-width-control input {
-    width: 100%;
-    accent-color: var(--pb-primary-bright);
 }
 
 .system-list {
@@ -268,10 +226,9 @@
 }
 
 .system-copy strong {
-    overflow: hidden;
     font-size: .85rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .system-copy small {
@@ -741,7 +698,7 @@ button.game-row.selected {
 
 @media (max-width: 1300px) {
     .library-workspace {
-        grid-template-columns: 280px minmax(480px, 1fr) 310px;
+        grid-template-columns: minmax(300px, 340px) minmax(480px, 1fr) 310px;
     }
 
     .game-row {
@@ -751,11 +708,19 @@ button.game-row.selected {
 
 @media (max-width: 1120px) {
     .library-workspace {
-        grid-template-columns: 210px minmax(0, 1fr);
+        display: block;
+    }
+
+    .systems-panel {
+        border-right: 0;
+        border-bottom: 1px solid var(--pb-border);
+    }
+
+    .system-list {
+        max-height: 260px;
     }
 
     .details-panel {
-        grid-column: 1 / -1;
         border-top: 1px solid var(--pb-border);
         border-left: 0;
     }
@@ -778,15 +743,6 @@ button.game-row.selected {
     .library-summary > div {
         min-width: 0;
         flex: 1;
-    }
-
-    .library-workspace {
-        display: block;
-    }
-
-    .systems-panel {
-        border-right: 0;
-        border-bottom: 1px solid var(--pb-border);
     }
 
     .system-list {

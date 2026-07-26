@@ -174,6 +174,45 @@ public sealed class AtlasCollectionRuleServiceTests
     }
 
     [Fact]
+    public void BuildPreview_ReceivesSystemScopedGroupsWithMatchingTitlesSeparately()
+    {
+        var scan = new ArchiveScanResult
+        {
+            RecognizedFileCount = 2,
+            OneGameOneRomGroups =
+            [
+                new DuplicateGroupSummary
+                {
+                    Title = "Aladdin",
+                    System = "Nintendo - Super Nintendo Entertainment System",
+                    SystemKey = "nintendo-super-nintendo-entertainment-system",
+                    GroupKey = "nintendo-super-nintendo-entertainment-system|aladdin",
+                    FileCount = 1,
+                    Variants = ["Aladdin (USA).sfc"]
+                },
+                new DuplicateGroupSummary
+                {
+                    Title = "Aladdin",
+                    System = "Sega Genesis",
+                    SystemKey = "sega-genesis",
+                    GroupKey = "sega-genesis|aladdin",
+                    FileCount = 1,
+                    Variants = ["Aladdin (USA).gen"]
+                }
+            ]
+        };
+
+        var service = CreateService();
+        var preview = service.BuildPreview(scan, new CollectionRuleOptions());
+
+        Assert.Equal(2, preview.DuplicateGroupsReviewed);
+        Assert.Equal(2, preview.Selections.Count);
+        Assert.Contains(preview.Selections, selection => selection.RecommendedVariant == "Aladdin (USA).sfc");
+        Assert.Contains(preview.Selections, selection => selection.RecommendedVariant == "Aladdin (USA).gen");
+    }
+
+
+    [Fact]
     public void BuildPreview_EnglishOnlyExcludesSingletonsWithoutEnglishCandidate()
     {
         var service = CreateService();

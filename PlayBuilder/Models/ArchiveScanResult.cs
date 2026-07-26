@@ -71,6 +71,9 @@ public sealed class MetadataScanSummary
 public sealed class DuplicateGroupSummary
 {
     public string Title { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string SystemKey { get; set; } = string.Empty;
+    public string GroupKey { get; set; } = string.Empty;
     public long FileCount { get; set; }
     public List<string> Variants { get; set; } = [];
 }

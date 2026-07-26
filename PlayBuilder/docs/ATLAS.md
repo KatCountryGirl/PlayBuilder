@@ -22,6 +22,8 @@ Current order:
 
 English-only mode removes candidates that cannot be identified as English before comparison.
 
+Atlas receives candidates from scan groups that are already scoped by canonical system and normalized game title. Atlas still compares candidates deterministically within each group; it does not merge matching titles across different systems.
+
 ## Explanations
 
 The final decision contains structured reasons describing which rules favored the winner over the runner-up. The Collection Builder displays these reasons without changing the source archive.

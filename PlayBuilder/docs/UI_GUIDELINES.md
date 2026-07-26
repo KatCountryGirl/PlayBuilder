@@ -19,6 +19,8 @@ The UI should feel friendly, understandable, and safe for users who do not know 
 - Ask Atlas help should be page-specific and explain purpose, controls, next steps, safety information, and common questions in practical language.
 - Scan progress should remain visible after navigation or refresh when work continues in the background.
 - Library browsing should keep system navigation readable and provide equivalent filter/search access for large catalogs.
+- Prefer a stable Library content layout with a readable Systems column over drawer behavior that can overlap the main app navigation.
+- Duplicate indicators should explain that they mean same-system alternate releases, not byte-for-byte identical files.
 - Maintain the existing PlayBuilder visual language unless a redesign is approved.
 
 ## Accessibility

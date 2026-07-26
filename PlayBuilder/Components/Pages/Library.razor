@@ -46,49 +46,37 @@
     }
     else
     {
-        <div class="library-workspace @(_systemsCollapsed ? "systems-collapsed" : null)" style="@WorkspaceStyle">
+        <div class="library-workspace">
             <aside class="systems-panel" aria-label="Systems">
                 <div class="panel-heading">
                     <div>
                         <span class="section-kicker">BROWSE</span>
                         <h2>Systems</h2>
                     </div>
-                    <div class="systems-panel-tools">
-                        <span>@_systemCounts.Count</span>
-                        <button type="button" title="@(_systemsCollapsed ? "Expand systems panel" : "Collapse systems panel")" @onclick="ToggleSystemsPanel">
-                            @(_systemsCollapsed ? "›" : "‹")
-                        </button>
-                    </div>
+                    <span>@_systemCounts.Count</span>
                 </div>
 
-                @if (!_systemsCollapsed)
-                {
-                    <label class="systems-width-control">
-                        Width
-                        <input type="range" min="260" max="430" step="10" value="@_systemsPanelWidth" @oninput="ChangeSystemsPanelWidth" />
-                    </label>
+                <button class="system-row @(_selectedSystem is null ? "active" : null)"
+                        type="button"
+                        @onclick="() => SelectSystemAsync(null)">
+                    <span class="system-icon" aria-hidden="true">▦</span>
+                    <span class="system-copy"><strong>All Systems</strong><small>Complete catalog</small></span>
+                    <b>@_totalGames.ToString("N0")</b>
+                </button>
 
-                    <button class="system-row @(_selectedSystem is null ? "active" : null)"
-                            type="button"
-                            @onclick="() => SelectSystemAsync(null)">
-                        <span class="system-icon" aria-hidden="true">▦</span>
-                        <span class="system-copy"><strong>All Systems</strong><small>Complete catalog</small></span>
-                        <b>@_totalGames.ToString("N0")</b>
-                    </button>
-
-                    <div class="system-list">
-                        @foreach (var system in _systemCounts)
-                        {
-                            <button class="system-row @(_selectedSystem == system.Name ? "active" : null)"
-                                    type="button"
-                                    @onclick="() => SelectSystemAsync(system.Name)">
-                                <span class="system-icon" aria-hidden="true">@GetSystemIcon(system.Name)</span>
-                                <span class="system-copy"><strong>@system.Name</strong><small>@GetSystemFamily(system.Name)</small></span>
-                                <b>@system.Count.ToString("N0")</b>
-                            </button>
-                        }
-                    </div>
-                }
+                <div class="system-list">
+                    @foreach (var system in _systemCounts)
+                    {
+                        <button class="system-row @(_selectedSystem == system.Name ? "active" : null)"
+                                type="button"
+                                title="@system.Name"
+                                @onclick="() => SelectSystemAsync(system.Name)">
+                            <span class="system-icon" aria-hidden="true">@GetSystemIcon(system.Name)</span>
+                            <span class="system-copy"><strong>@system.Name</strong><small>@GetSystemFamily(system.Name)</small></span>
+                            <b>@system.Count.ToString("N0")</b>
+                        </button>
+                    }
+                </div>
             </aside>
 
             <section class="games-panel" aria-label="Game releases">
@@ -136,6 +124,13 @@
                             {
                                 <option value="@extension">@extension</option>
                             }
+                        </select>
+
+                        <select value="@_selectedStatus" @onchange="ChangeStatusAsync" aria-label="Filter by duplicate status">
+                            <option value="">All statuses</option>
+                            <option value="duplicate">Duplicate groups</option>
+                            <option value="review">Needs review</option>
+                            <option value="healthy">Healthy</option>
                         </select>
                     </div>
                 </div>
@@ -189,7 +184,7 @@
 
                         @foreach (var game in _games)
                         {
-                            var duplicateCount = GetDuplicateCount(game.SortTitle);
+                            var duplicateCount = GetDuplicateCount(game);
                             <div class="game-row @(_selectedGame?.Id == game.Id ? "selected" : null) @(_selectedGameIds.Contains(game.Id) ? "checked" : null)"
                                  role="row">
                                 <label class="game-select" title="Select @game.Title">
@@ -323,12 +318,12 @@
 
     private bool _isLoading = true;
     private bool _isSyncingCatalog;
-    private bool _systemsCollapsed;
     private string _searchText = string.Empty;
     private string? _selectedSystem;
     private string _selectedRegion = string.Empty;
     private string _selectedLanguage = string.Empty;
     private string _selectedExtension = string.Empty;
+    private string _selectedStatus = string.Empty;
     private Game? _selectedGame;
     private int _pageNumber = 1;
     private int _totalPages = 1;
@@ -337,11 +332,7 @@
     private int _duplicateGroupCount;
     private int _firstVisible;
     private int _lastVisible;
-    private int _systemsPanelWidth = 310;
     private CancellationTokenSource? _searchDelay;
-
-    private string WorkspaceStyle =>
-        $"--systems-panel-width: {(_systemsCollapsed ? 72 : _systemsPanelWidth)}px;";
 
     protected override async Task OnInitializedAsync()
     {
@@ -393,10 +384,8 @@
             .OrderByDescending(item => item.Count)
             .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase));
 
-        _duplicateGroupCount = allGames
-            .Where(game => !string.IsNullOrWhiteSpace(game.SortTitle))
-            .GroupBy(game => game.SortTitle, StringComparer.OrdinalIgnoreCase)
-            .Count(group => group.Count() > 1);
+        var allDuplicateCounts = DuplicateGrouping.BuildCounts(allGames);
+        _duplicateGroupCount = allDuplicateCounts.Count(item => item.Value > 1);
 
         _regions.Clear();
         _regions.AddRange(allGames
@@ -423,43 +412,28 @@
     private async Task LoadPageAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var query = ApplyFilters(db.Games.AsNoTracking());
+        var allFilteredGames = await ApplyFilters(db.Games.AsNoTracking())
+            .OrderBy(game => game.Title)
+            .ThenBy(game => game.Region)
+            .ThenBy(game => game.SourcePath)
+            .ToListAsync();
 
-        _filteredCount = await query.CountAsync();
+        _duplicateCounts.Clear();
+        foreach (var item in DuplicateGrouping.BuildCounts(allFilteredGames))
+        {
+            _duplicateCounts[item.Key] = item.Value;
+        }
+
+        var statusFilteredGames = ApplyStatusFilter(allFilteredGames);
+
+        _filteredCount = statusFilteredGames.Count;
         _totalPages = Math.Max(1, (int)Math.Ceiling(_filteredCount / (double)PageSize));
         _pageNumber = Math.Clamp(_pageNumber, 1, _totalPages);
 
         _games.Clear();
-        _games.AddRange(await query
-            .OrderBy(game => game.Title)
-            .ThenBy(game => game.Region)
-            .ThenBy(game => game.SourcePath)
+        _games.AddRange(statusFilteredGames
             .Skip((_pageNumber - 1) * PageSize)
-            .Take(PageSize)
-            .ToListAsync());
-
-        _duplicateCounts.Clear();
-        var sortTitles = _games
-            .Select(game => game.SortTitle)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (sortTitles.Count > 0)
-        {
-            var matchingTitles = await db.Games
-                .AsNoTracking()
-                .Where(game => sortTitles.Contains(game.SortTitle))
-                .Select(game => game.SortTitle)
-                .ToListAsync();
-
-            foreach (var group in matchingTitles
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .GroupBy(value => value, StringComparer.OrdinalIgnoreCase))
-            {
-                _duplicateCounts[group.Key] = group.Count();
-            }
-        }
+            .Take(PageSize));
 
         _firstVisible = _filteredCount == 0 ? 0 : ((_pageNumber - 1) * PageSize) + 1;
         _lastVisible = Math.Min(_pageNumber * PageSize, _filteredCount);
@@ -479,6 +453,17 @@
             _selectedLanguage,
             _selectedExtension,
             _searchText));
+    }
+
+    private List<Game> ApplyStatusFilter(List<Game> games)
+    {
+        return _selectedStatus switch
+        {
+            "duplicate" => games.Where(game => DuplicateGrouping.IsDuplicate(game, _duplicateCounts)).ToList(),
+            "review" => games.Where(game => GetStatusClass(game, GetDuplicateCount(game)) == "review").ToList(),
+            "healthy" => games.Where(game => GetStatusClass(game, GetDuplicateCount(game)) == "healthy").ToList(),
+            _ => games
+        };
     }
 
     private bool AreAllPageGamesSelected =>
@@ -550,19 +535,23 @@
     private async Task SelectGameAsync(Game game)
     {
         _selectedGame = game;
-        await LoadSelectedReleasesAsync(game.SortTitle);
+        await LoadSelectedReleasesAsync(game);
     }
 
-    private async Task LoadSelectedReleasesAsync(string sortTitle)
+    private async Task LoadSelectedReleasesAsync(Game game)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
+        var systemKey = SystemIdentity.CanonicalKey(game.System);
         _selectedReleases.Clear();
-        _selectedReleases.AddRange(await db.Games.AsNoTracking()
-            .Where(game => game.SortTitle == sortTitle)
-            .OrderBy(game => game.Region)
-            .ThenBy(game => game.Revision)
-            .ThenBy(game => game.SourcePath)
-            .ToListAsync());
+        var releases = await db.Games.AsNoTracking()
+            .Where(item => item.SortTitle == game.SortTitle)
+            .ToListAsync();
+
+        _selectedReleases.AddRange(releases
+            .Where(item => SystemIdentity.CanonicalKey(item.System) == systemKey)
+            .OrderBy(item => item.Region)
+            .ThenBy(item => item.Revision)
+            .ThenBy(item => item.SourcePath));
     }
 
     private async Task ToggleSelectedFavoriteAsync()
@@ -642,6 +631,13 @@
         await LoadPageAsync();
     }
 
+    private async Task ChangeStatusAsync(ChangeEventArgs args)
+    {
+        _selectedStatus = args.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+        await LoadPageAsync();
+    }
+
     private async Task ResetFiltersAsync()
     {
         _searchText = string.Empty;
@@ -649,6 +645,7 @@
         _selectedRegion = string.Empty;
         _selectedLanguage = string.Empty;
         _selectedExtension = string.Empty;
+        _selectedStatus = string.Empty;
         _pageNumber = 1;
         await LoadPageAsync();
     }
@@ -669,18 +666,8 @@
 
     private void OpenDashboard() => Navigation.NavigateTo("/dashboard");
 
-    private void ToggleSystemsPanel() => _systemsCollapsed = !_systemsCollapsed;
-
-    private void ChangeSystemsPanelWidth(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), out var width))
-        {
-            _systemsPanelWidth = Math.Clamp(width, 260, 430);
-        }
-    }
-
-    private int GetDuplicateCount(string sortTitle) =>
-        _duplicateCounts.TryGetValue(sortTitle, out var count) ? count : 1;
+    private int GetDuplicateCount(Game game) =>
+        _duplicateCounts.TryGetValue(DuplicateGrouping.CreateKey(game.System, game.SortTitle), out var count) ? count : 1;
 
     private static string GetStatusClass(Game game, int releaseCount)
     {
@@ -700,7 +687,7 @@
     private static string GetStatusExplanation(Game game, int releaseCount) =>
         GetStatusClass(game, releaseCount) switch
         {
-            "duplicate" => "PlayBuilder found more than one release for this title. The 1G1R engine will decide which copy to recommend.",
+            "duplicate" => "PlayBuilder found more than one release for this title on this system. The 1G1R engine will decide which copy to recommend.",
             "review" => "One or more filename tags could not be confidently detected. The source file remains safe and unchanged.",
             _ => "The filename contains enough information for PlayBuilder to catalog this release confidently."
         };
@@ -721,6 +708,7 @@
         if (!string.IsNullOrWhiteSpace(_selectedRegion)) filters.Add(_selectedRegion);
         if (!string.IsNullOrWhiteSpace(_selectedLanguage)) filters.Add(_selectedLanguage);
         if (!string.IsNullOrWhiteSpace(_selectedExtension)) filters.Add(DisplayExtension(_selectedExtension));
+        if (!string.IsNullOrWhiteSpace(_selectedStatus)) filters.Add(_selectedStatus == "duplicate" ? "duplicate groups" : _selectedStatus);
         if (!string.IsNullOrWhiteSpace(_searchText)) filters.Add($"matching “{_searchText.Trim()}”");
         return filters.Count == 0 ? "Across your complete catalog" : string.Join(" · ", filters);
     }
