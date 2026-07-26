@@ -92,6 +92,82 @@ public sealed class CollectionService(
         return collection;
     }
 
+    public async Task<Collection> SaveOneGameOneRomCollectionAsync(
+        string name,
+        string destinationPath,
+        string frontend,
+        IEnumerable<string> selectedFilenames,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db =
+            await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var normalizedName = string.IsNullOrWhiteSpace(name)
+            ? "1G1R Collection"
+            : name.Trim();
+
+        var collection = await db.Collections
+            .Include(item => item.Games)
+            .FirstOrDefaultAsync(
+                item => item.Name == normalizedName,
+                cancellationToken);
+
+        if (collection is null)
+        {
+            collection = new Collection
+            {
+                Name = normalizedName,
+                Type = "1g1r",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            db.Collections.Add(collection);
+        }
+
+        collection.Type = "1g1r";
+        collection.DestinationPath = destinationPath?.Trim() ?? string.Empty;
+        collection.Frontend = frontend?.Trim() ?? string.Empty;
+        collection.UpdatedAt = DateTime.UtcNow;
+
+        var selectedKeys = selectedFilenames
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(NormalizeFilenameKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var gameIds = new List<int>();
+        if (selectedKeys.Count > 0)
+        {
+            var games = await db.Games
+                .Select(game => new
+                {
+                    game.Id,
+                    game.SourcePath,
+                    game.RelativePath,
+                    game.Title
+                })
+                .ToListAsync(cancellationToken);
+
+            gameIds = games
+                .Where(game =>
+                    selectedKeys.Contains(NormalizeFilenameKey(game.SourcePath)) ||
+                    selectedKeys.Contains(NormalizeFilenameKey(game.RelativePath)) ||
+                    selectedKeys.Contains(NormalizeFilenameKey(game.Title)))
+                .Select(game => game.Id)
+                .ToList();
+        }
+
+        collection.Games.Clear();
+        collection.Games.AddRange(
+            gameIds.Distinct().Select(gameId => new CollectionGame
+            {
+                GameId = gameId
+            }));
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return collection;
+    }
+
     public async Task<bool> ToggleFavoriteAsync(
         int gameId,
         CancellationToken cancellationToken = default)
@@ -331,6 +407,14 @@ public sealed class CollectionService(
             .Where(gameId => gameId > 0)
             .Distinct()
             .ToArray();
+    }
+
+    private static string NormalizeFilenameKey(string value)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(value);
+        return string.IsNullOrWhiteSpace(fileName)
+            ? value.Trim()
+            : fileName.Trim();
     }
 
     private static async Task TouchCollectionAsync(

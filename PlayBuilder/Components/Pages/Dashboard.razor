@@ -1,7 +1,7 @@
 @page "/dashboard"
 @implements IDisposable
 @inject ISettingsService SettingsService
-@inject IGameScanWorkflowService GameScanWorkflow
+@inject IGameScanSessionService ScanSession
 @inject IScanReportService ScanReportService
 @inject NavigationManager Navigation
 
@@ -85,18 +85,18 @@
                 <header class="home-panel-header">
                     <div>
                         <p class="home-eyebrow">ARCHIVE SCAN</p>
-                        <h3>@(_isScanning ? "Analyzing your collection…" : "Safe game archive analysis")</h3>
+                    <h3>@(_snapshot.IsRunning ? "Analyzing your collection…" : "Safe game archive analysis")</h3>
                         <p>
                             Reads filenames and folder names only. Your game files are not opened,
                             renamed, moved, copied, or deleted.
                         </p>
                     </div>
 
-                    @if (_isScanning)
+                    @if (_snapshot.IsRunning)
                     {
                         <button class="home-action-button secondary"
                                 type="button"
-                                @onclick="CancelScan">
+                                @onclick="ScanSession.CancelScan">
                             Cancel Scan
                         </button>
                     }
@@ -110,7 +110,7 @@
                     }
                 </header>
 
-                @if (_isScanning)
+                @if (_snapshot.IsRunning)
                 {
                     <div class="home-scan-progress"
                          role="status"
@@ -118,34 +118,34 @@
                         <span class="scan-pulse" aria-hidden="true">⚡</span>
 
                         <span class="scan-progress-copy">
-                            <strong>@_progress.RecognizedFiles.ToString("N0") game files found</strong>
-                            <span class="scan-phase">@_progress.Phase</span>
+                            <strong>@_snapshot.Progress.RecognizedFiles.ToString("N0") game files found</strong>
+                            <span class="scan-phase">@_snapshot.Progress.Phase</span>
 
                             <span>
-                                @_progress.FilesChecked.ToString("N0") files checked ·
-                                @FormatRate(_progress) ·
-                                @FormatLiveDuration(_progress.Elapsed)
+                                @_snapshot.Progress.FilesChecked.ToString("N0") files checked ·
+                                @FormatRate(_snapshot.Progress) ·
+                                @FormatLiveDuration(_snapshot.Progress.Elapsed)
                             </span>
 
-                            @if (!string.IsNullOrWhiteSpace(_progress.CurrentFile))
+                            @if (!string.IsNullOrWhiteSpace(_snapshot.Progress.CurrentFile))
                             {
-                                <small class="current-file">@_progress.CurrentFile</small>
+                                <small class="current-file">@_snapshot.Progress.CurrentFile</small>
                             }
 
-                            <small>@ShortenPath(_progress.CurrentFolder)</small>
+                            <small>@ShortenPath(_snapshot.Progress.CurrentFolder)</small>
                         </span>
                     </div>
                 }
 
-                @if (!string.IsNullOrWhiteSpace(_scanError))
+                @if (_snapshot.MessageIsError && !string.IsNullOrWhiteSpace(_snapshot.Message))
                 {
                     <div class="home-message error" role="alert">
                         <strong>PlayBuilder couldn't complete the scan.</strong>
-                        <span>@_scanError</span>
+                        <span>@_snapshot.Message</span>
                     </div>
                 }
 
-                @if (_scanCancelled)
+                @if (_snapshot.Status == GameScanStatus.Cancelled)
                 {
                     <div class="home-message">
                         <strong>Scan cancelled.</strong>
@@ -289,20 +289,14 @@
 
 @code {
     private bool _isLoading = true;
-    private bool _isScanning;
-    private bool _scanCancelled;
-    private string? _scanError;
 
     private PlayBuilderSettings _settings = new();
     private ArchiveScanResult? _latestScan;
-
-    private ArchiveScanProgress _progress =
-        new(0, 0, string.Empty, string.Empty, TimeSpan.Zero);
-
-    private CancellationTokenSource? _scanCancellation;
+    private GameScanSessionSnapshot _snapshot = GameScanSessionSnapshot.Idle();
 
     protected override async Task OnInitializedAsync()
     {
+        ScanSession.SnapshotChanged += HandleScanSnapshotChanged;
         _settings = await SettingsService.LoadAsync();
 
         if (!_settings.IsConfigured)
@@ -311,70 +305,23 @@
             return;
         }
 
-        _latestScan = await ScanReportService.LoadLatestAsync();
+        _latestScan = ScanSession.Snapshot.LastCompletedScan ?? await ScanReportService.LoadLatestAsync();
+        _snapshot = ScanSession.Snapshot.LastCompletedScan is null && _latestScan is not null
+            ? GameScanSessionSnapshot.Idle(_latestScan)
+            : ScanSession.Snapshot;
         _isLoading = false;
     }
 
     private async Task StartScan()
     {
-        _scanError = null;
-        _scanCancelled = false;
-        _isScanning = true;
-
-        _progress = new ArchiveScanProgress(
-            0,
-            0,
-            _settings.ArchivePath,
-            string.Empty,
-            TimeSpan.Zero);
-
-        _scanCancellation = new CancellationTokenSource();
-
-        var progress = new Progress<ArchiveScanProgress>(value =>
+        if (!await ScanSession.StartScanAsync(_settings))
         {
-            _progress = value;
-            _ = InvokeAsync(StateHasChanged);
-        });
-
-        try
-        {
-            var result = await GameScanWorkflow.ScanAndSaveAsync(
-                _settings,
-                progress,
-                _scanCancellation.Token);
-
-            _latestScan = result;
+            _snapshot = ScanSession.Snapshot with
+            {
+                Message = "A scan is already running. Open Scan Games to watch progress or cancel it.",
+                MessageIsError = true
+            };
         }
-        catch (OperationCanceledException)
-        {
-            _scanCancelled = true;
-        }
-        catch (DirectoryNotFoundException)
-        {
-            _scanError =
-                "The original game archive folder could not be found. Open Settings and check the path.";
-        }
-        catch (UnauthorizedAccessException)
-        {
-            _scanError =
-                "PlayBuilder does not have permission to read the original game archive folder.";
-        }
-        catch (Exception)
-        {
-            _scanError =
-                "An unexpected error occurred while reading the game archive. Your files were not changed.";
-        }
-        finally
-        {
-            _isScanning = false;
-            _scanCancellation?.Dispose();
-            _scanCancellation = null;
-        }
-    }
-
-    private void CancelScan()
-    {
-        _scanCancellation?.Cancel();
     }
 
     private static string FormatRate(ArchiveScanProgress progress)
@@ -449,7 +396,13 @@
 
     public void Dispose()
     {
-        _scanCancellation?.Cancel();
-        _scanCancellation?.Dispose();
+        ScanSession.SnapshotChanged -= HandleScanSnapshotChanged;
+    }
+
+    private void HandleScanSnapshotChanged()
+    {
+        _snapshot = ScanSession.Snapshot;
+        _latestScan = _snapshot.LastCompletedScan ?? _latestScan;
+        _ = InvokeAsync(StateHasChanged);
     }
 }
