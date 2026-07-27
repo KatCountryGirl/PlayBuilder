@@ -12,6 +12,7 @@
 - Improve the Collection Builder review workflow with persistent user selections, summary filtering, and page-specific Ask Atlas help.
 - Keep scans running in the background and improve Library browsing for large catalogs.
 - Correct duplicate reporting so alternate releases are grouped within the same canonical system only.
+- Preserve catalog entries across additive scans and repair the Collection Builder to Build Preview workflow.
 
 ## Next Milestone
 
@@ -42,6 +43,7 @@
 - Added real Collection Builder selection controls, basic review filters, extra-version review, and page-specific Ask Atlas guidance.
 - Added background scanning, Scan Games folder browsing, clearer Game-file terminology, and improved Library system browsing.
 - Replaced the Library drawer-style Systems panel with a stable wider column and corrected duplicate grouping by canonical system.
+- Added additive catalog scanning, explicit catalog replacement, system removal, system-scoped collections, and Build Preview support for current saved collection types.
 - Added English-only and duplicate-group integration tests.
 
 ### Milestone 1 — Atlas Parsing Foundation (v0.2.0)

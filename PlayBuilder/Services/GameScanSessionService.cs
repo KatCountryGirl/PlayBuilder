@@ -29,7 +29,8 @@ public sealed class GameScanSessionService : IGameScanSessionService
 
     public Task<bool> StartScanAsync(
         PlayBuilderSettings settings,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CatalogScanMode mode = CatalogScanMode.AddOrUpdate)
     {
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
@@ -48,14 +49,16 @@ public sealed class GameScanSessionService : IGameScanSessionService
                 GameScanStatus.Running,
                 new ArchiveScanProgress(0, 0, settings.ArchivePath, string.Empty, TimeSpan.Zero),
                 _snapshot.LastCompletedScan,
-                "Scan running in the background. You can leave this page and return later.",
+                mode == CatalogScanMode.ReplaceEntireCatalog
+                    ? "Replacing the PlayBuilder catalog in the background. Original game files are not changed."
+                    : "Adding or updating games in the background. You can leave this page and return later.",
                 false,
                 DateTimeOffset.UtcNow,
                 null);
         }
 
         NotifyChanged();
-        _ = RunScanAsync(settings, scanCancellation);
+        _ = RunScanAsync(settings, scanCancellation, mode);
         return Task.FromResult(true);
     }
 
@@ -67,7 +70,7 @@ public sealed class GameScanSessionService : IGameScanSessionService
         }
     }
 
-    private async Task RunScanAsync(PlayBuilderSettings settings, CancellationTokenSource scanCancellation)
+    private async Task RunScanAsync(PlayBuilderSettings settings, CancellationTokenSource scanCancellation, CatalogScanMode mode)
     {
         var progress = new Progress<ArchiveScanProgress>(value =>
         {
@@ -81,7 +84,7 @@ public sealed class GameScanSessionService : IGameScanSessionService
 
         try
         {
-            var result = await _workflow.ScanAndSaveAsync(settings, progress, scanCancellation.Token);
+            var result = await _workflow.ScanAndSaveAsync(settings, progress, scanCancellation.Token, mode);
             UpdateSnapshot(snapshot => snapshot with
             {
                 Status = GameScanStatus.Completed,

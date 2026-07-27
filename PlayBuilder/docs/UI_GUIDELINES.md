@@ -21,6 +21,9 @@ The UI should feel friendly, understandable, and safe for users who do not know 
 - Library browsing should keep system navigation readable and provide equivalent filter/search access for large catalogs.
 - Prefer a stable Library content layout with a readable Systems column over drawer behavior that can overlap the main app navigation.
 - Duplicate indicators should explain that they mean same-system alternate releases, not byte-for-byte identical files.
+- Default scanning language should say Add or Update Games. Catalog replacement must be advanced, confirmed, and clear that original game files are not changed.
+- Collection Builder bulk actions should describe and affect the currently filtered result set.
+- Favorites collections should be described as saved collections built from games marked as favorites in Library.
 - Maintain the existing PlayBuilder visual language unless a redesign is approved.
 
 ## Accessibility

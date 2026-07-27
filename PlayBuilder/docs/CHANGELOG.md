@@ -3,15 +3,20 @@
 ## [Unreleased]
 
 ### Added
+- Standard scans now add or update catalog entries instead of replacing unrelated systems.
+- Scan Games now separates the default Add or Update Games action from an advanced, confirmed Replace Entire Catalog action.
+- Library now includes Manage Systems catalog removal with confirmation and affected release counts.
+- Collection Builder now includes reusable system selection for 1G1R and Favorites collections.
+- Build Preview now includes system filtering, per-view counts, selected-system context, and saved collection deletion.
 - Library duplicate status filtering now narrows results to same-system duplicate groups, needs-review releases, or healthy releases.
 - Scans now continue in an application-level background session when users leave or refresh the Scan Games page.
 - Scan Games now has Browse buttons for the source Game folder and destination folder.
-- Library now has a wider, collapsible, resizable Systems panel plus a System filter and system-name search.
+- Library now has a wider stable Systems panel plus a System filter and system-name search.
 - Collection Builder now supports real recommendation selection checkboxes with selected/excluded counts, Select All, Select None, Invert Selection, and Reset to Atlas Recommendations actions.
 - Collection Builder summary cards now filter confident choices, needs-review recommendations, and extra versions without rerunning Atlas.
 - Collection Builder now includes beginner-friendly search, language, region, selected-only, excluded-only, and needs-review filters.
 - Ask Atlas now provides page-specific practical help for every main navigation page, including Collection Builder, Scan Games, and Build Preview guidance.
-- Restored the Scan Games page at `/scan` with folder setup, frontend selection, scan progress, Rescan, and scan summary.
+- Restored the Scan Games page at `/scan` with folder setup, frontend selection, scan progress, Add or Update Games, and scan summary.
 - 1G1R scan groups now include every normalized title, including single-game titles, with compact Collection Builder diagnostics.
 - Atlas Profiles with JSON-backed create, rename, delete, duplicate, active-profile switching, and saved Atlas preference options.
 - Atlas Inspector in Collection Builder with read-only decision details, ordered candidates, and parsed metadata for each recommendation.
@@ -19,6 +24,9 @@
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- Multi-disc sets no longer count distinct required discs as duplicate releases.
+- Collection Builder selection actions now apply to the currently filtered recommendation list and preserve selections across filters.
+- Favorites collection wording now clarifies that saved Favorites collections are built from games marked as favorites in Library.
 - Duplicate groups are now scoped by canonical system plus normalized game title, so matching titles on different systems are no longer counted or displayed as duplicates.
 - Library now uses a stable wider Systems column instead of the collapsible drawer-style panel.
 - Older saved scan reports with title-only duplicate groups are repaired from the SQLite catalog when loaded, without changing source game files.

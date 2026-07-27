@@ -8,6 +8,7 @@
 @inject IArchiveScanner ArchiveScanner
 @inject IScanReportService ScanReportService
 @inject ICollectionService CollectionService
+@inject ICatalogService CatalogService
 
 <PageTitle>Library · PlayBuilder</PageTitle>
 
@@ -77,6 +78,39 @@
                         </button>
                     }
                 </div>
+
+                <details class="manage-systems-panel">
+                    <summary>Manage Systems</summary>
+                    <p>This removes the selected system from PlayBuilder’s catalog. It does not delete or change your original game files.</p>
+                    <div class="system-list compact">
+                        @foreach (var system in _systemCounts.OrderBy(system => system.Name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            var key = SystemIdentity.CanonicalKey(system.Name);
+                            <label class="system-remove-row">
+                                <input type="checkbox"
+                                       checked="@_systemsPendingRemoval.Contains(key)"
+                                       @onchange="args => ToggleSystemRemoval(key, args)" />
+                                <span>@system.Name</span>
+                                <b>@system.Count.ToString("N0")</b>
+                            </label>
+                        }
+                    </div>
+                    <p>@_systemsPendingRemoval.Count.ToString("N0") systems selected · @PendingRemovalReleaseCount.ToString("N0") releases affected</p>
+                    <label class="system-remove-row">
+                        <input type="checkbox" checked="@_removeSystemsConfirmed" @onchange="args => _removeSystemsConfirmed = args.Value is bool value && value" />
+                        Confirm catalog removal only
+                    </label>
+                    <button type="button"
+                            class="secondary"
+                            disabled="@(_systemsPendingRemoval.Count == 0 || !_removeSystemsConfirmed)"
+                            @onclick="RemoveSelectedSystemsAsync">
+                        Remove from PlayBuilder Catalog
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(_systemRemovalMessage))
+                    {
+                        <p>@_systemRemovalMessage</p>
+                    }
+                </details>
             </aside>
 
             <section class="games-panel" aria-label="Game releases">
@@ -315,9 +349,12 @@
     private readonly List<string> _extensions = [];
     private readonly Dictionary<string, int> _duplicateCounts = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<int> _selectedGameIds = [];
+    private readonly HashSet<string> _systemsPendingRemoval = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _isLoading = true;
     private bool _isSyncingCatalog;
+    private bool _removeSystemsConfirmed;
+    private string _systemRemovalMessage = string.Empty;
     private string _searchText = string.Empty;
     private string? _selectedSystem;
     private string _selectedRegion = string.Empty;
@@ -333,6 +370,11 @@
     private int _firstVisible;
     private int _lastVisible;
     private CancellationTokenSource? _searchDelay;
+
+    private int PendingRemovalReleaseCount =>
+        _systemCounts
+            .Where(system => _systemsPendingRemoval.Contains(SystemIdentity.CanonicalKey(system.Name)))
+            .Sum(system => system.Count);
 
     protected override async Task OnInitializedAsync()
     {
@@ -665,6 +707,34 @@
     }
 
     private void OpenDashboard() => Navigation.NavigateTo("/dashboard");
+
+    private void ToggleSystemRemoval(string systemKey, ChangeEventArgs args)
+    {
+        if (args.Value is bool selected && selected)
+        {
+            _systemsPendingRemoval.Add(systemKey);
+        }
+        else
+        {
+            _systemsPendingRemoval.Remove(systemKey);
+        }
+    }
+
+    private async Task RemoveSelectedSystemsAsync()
+    {
+        if (_systemsPendingRemoval.Count == 0 || !_removeSystemsConfirmed)
+        {
+            return;
+        }
+
+        var result = await CatalogService.RemoveSystemsAsync(_systemsPendingRemoval);
+        _systemRemovalMessage = $"Removed {result.SystemsRemoved:N0} systems and {result.ReleasesRemoved:N0} releases from PlayBuilder’s catalog. Original game files were not changed.";
+        _systemsPendingRemoval.Clear();
+        _removeSystemsConfirmed = false;
+        _selectedSystem = null;
+        await LoadLibrarySummaryAsync();
+        await LoadPageAsync();
+    }
 
     private int GetDuplicateCount(Game game) =>
         _duplicateCounts.TryGetValue(DuplicateGrouping.CreateKey(game.System, game.SortTitle), out var count) ? count : 1;

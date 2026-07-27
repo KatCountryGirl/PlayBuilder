@@ -77,6 +77,25 @@ public sealed class CollectionReviewStateTests
         Assert.Contains("Selected by", alternate.Reason);
     }
 
+    [Fact]
+    public void FilteredSelectionActions_ApplyOnlyToProvidedRows()
+    {
+        var state = CreateState();
+        var usaRows = state.Filter(new CollectionReviewFilters { Region = "USA" }, CollectionReviewSummaryFilter.All);
+
+        state.SelectNone(usaRows);
+
+        Assert.False(state.IsSelected(Recommendations[0]));
+        Assert.True(state.IsSelected(Recommendations[1]));
+        Assert.False(state.IsSelected(Recommendations[2]));
+
+        state.InvertSelection(usaRows);
+
+        Assert.True(state.IsSelected(Recommendations[0]));
+        Assert.True(state.IsSelected(Recommendations[1]));
+        Assert.True(state.IsSelected(Recommendations[2]));
+    }
+
     private static readonly GameSelectionPreview[] Recommendations =
     [
         new()

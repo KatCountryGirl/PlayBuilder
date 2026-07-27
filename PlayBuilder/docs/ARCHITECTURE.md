@@ -20,6 +20,14 @@ Duplicate and 1G1R scan groups are derived from canonical system identity plus n
 
 Saved scan reports store derived duplicate-group summaries. When an older report lacks system-scoped group keys, PlayBuilder repairs those derived summaries from the SQLite game catalog during load without deleting source files or unrelated settings.
 
+## Catalog Persistence
+
+Standard scans add or update catalog records by canonical source path. Missing files are not removed merely because a later scan targets a different folder or system. Replace Entire Catalog is an explicit advanced scan mode that clears PlayBuilder catalog records before importing the selected source folder; it never deletes original game files.
+
+System removal is handled as catalog maintenance through `ICatalogService`. It deletes selected system records from PlayBuilder's SQLite catalog only and relies on normal collection-game cascade behavior to remove saved collection links.
+
+Saved collections store reusable system scope in `Collection.RuleJson` so 1G1R, Favorites, and future collection types can share the same selected-system model without a database migration.
+
 ## Migration State
 
 `ICollectionRuleService` is implemented by `AtlasCollectionRuleService`. The former `CollectionRuleService` remains available by concrete type so Milestone 3 can generate controlled comparison reports before deletion or archival.

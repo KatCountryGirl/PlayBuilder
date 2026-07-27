@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlayBuilder.Data;
 using PlayBuilder.Data.Entities;
+using PlayBuilder.Models;
 
 namespace PlayBuilder.Services;
 
@@ -42,6 +43,7 @@ public sealed class CollectionService(
         string name,
         string destinationPath,
         string frontend,
+        IEnumerable<string>? selectedSystemKeys = null,
         CancellationToken cancellationToken = default)
     {
         await using var db =
@@ -72,14 +74,19 @@ public sealed class CollectionService(
         collection.Type = "favorites";
         collection.DestinationPath = destinationPath?.Trim() ?? string.Empty;
         collection.Frontend = frontend?.Trim() ?? string.Empty;
+        collection.RuleJson = CollectionRuleStateJson.Write(selectedSystemKeys ?? []);
         collection.UpdatedAt = DateTime.UtcNow;
 
         collection.Games.Clear();
 
-        var favoriteIds = await db.Games
-            .Where(game => game.IsFavorite)
+        var systemKeys = NormalizeSystemKeys(selectedSystemKeys);
+        var favoriteIds = (await db.Games
+                .Where(game => game.IsFavorite)
+                .Select(game => new { game.Id, game.System })
+                .ToListAsync(cancellationToken))
+            .Where(game => systemKeys.Count == 0 || systemKeys.Contains(SystemIdentity.CanonicalKey(game.System)))
             .Select(game => game.Id)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         collection.Games.AddRange(
             favoriteIds.Select(gameId => new CollectionGame
@@ -97,6 +104,7 @@ public sealed class CollectionService(
         string destinationPath,
         string frontend,
         IEnumerable<string> selectedFilenames,
+        IEnumerable<string>? selectedSystemKeys = null,
         CancellationToken cancellationToken = default)
     {
         await using var db =
@@ -127,6 +135,7 @@ public sealed class CollectionService(
         collection.Type = "1g1r";
         collection.DestinationPath = destinationPath?.Trim() ?? string.Empty;
         collection.Frontend = frontend?.Trim() ?? string.Empty;
+        collection.RuleJson = CollectionRuleStateJson.Write(selectedSystemKeys ?? []);
         collection.UpdatedAt = DateTime.UtcNow;
 
         var selectedKeys = selectedFilenames
@@ -134,6 +143,7 @@ public sealed class CollectionService(
             .Select(NormalizeFilenameKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        var systemKeys = NormalizeSystemKeys(selectedSystemKeys);
         var gameIds = new List<int>();
         if (selectedKeys.Count > 0)
         {
@@ -143,15 +153,17 @@ public sealed class CollectionService(
                     game.Id,
                     game.SourcePath,
                     game.RelativePath,
-                    game.Title
+                    game.Title,
+                    game.System
                 })
                 .ToListAsync(cancellationToken);
 
             gameIds = games
                 .Where(game =>
-                    selectedKeys.Contains(NormalizeFilenameKey(game.SourcePath)) ||
-                    selectedKeys.Contains(NormalizeFilenameKey(game.RelativePath)) ||
-                    selectedKeys.Contains(NormalizeFilenameKey(game.Title)))
+                    (systemKeys.Count == 0 || systemKeys.Contains(SystemIdentity.CanonicalKey(game.System))) &&
+                    (selectedKeys.Contains(NormalizeFilenameKey(game.SourcePath)) ||
+                     selectedKeys.Contains(NormalizeFilenameKey(game.RelativePath)) ||
+                     selectedKeys.Contains(NormalizeFilenameKey(game.Title))))
                 .Select(game => game.Id)
                 .ToList();
         }
@@ -166,6 +178,41 @@ public sealed class CollectionService(
         await db.SaveChangesAsync(cancellationToken);
 
         return collection;
+    }
+
+    public async Task<int> DeleteCollectionAsync(
+        int collectionId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var collection = await db.Collections.FindAsync([collectionId], cancellationToken);
+        if (collection is null)
+        {
+            return 0;
+        }
+
+        db.Collections.Remove(collection);
+        await db.SaveChangesAsync(cancellationToken);
+        return 1;
+    }
+
+    public async Task<IReadOnlyList<CatalogSystemSummary>> GetCatalogSystemsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var games = await db.Games
+            .AsNoTracking()
+            .Select(game => new { game.System })
+            .ToListAsync(cancellationToken);
+
+        return games
+            .GroupBy(game => SystemIdentity.CanonicalKey(game.System), StringComparer.OrdinalIgnoreCase)
+            .Select(group => new CatalogSystemSummary(
+                group.Select(game => game.System).OrderBy(value => value, StringComparer.OrdinalIgnoreCase).FirstOrDefault() ?? "Unknown",
+                group.Key,
+                group.Count()))
+            .OrderBy(system => system.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task<bool> ToggleFavoriteAsync(
@@ -408,6 +455,12 @@ public sealed class CollectionService(
             .Distinct()
             .ToArray();
     }
+
+    private static HashSet<string> NormalizeSystemKeys(IEnumerable<string>? systemKeys) =>
+        (systemKeys ?? [])
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .Select(SystemIdentity.CanonicalKey)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static string NormalizeFilenameKey(string value)
     {

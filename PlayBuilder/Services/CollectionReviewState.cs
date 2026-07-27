@@ -69,6 +69,22 @@ public sealed class CollectionReviewState
 
     public void SelectNone() => _selected.Clear();
 
+    public void SelectAll(IEnumerable<GameSelectionPreview> selections)
+    {
+        foreach (var selection in selections)
+        {
+            _selected.Add(selection.RecommendedVariant);
+        }
+    }
+
+    public void SelectNone(IEnumerable<GameSelectionPreview> selections)
+    {
+        foreach (var selection in selections)
+        {
+            _selected.Remove(selection.RecommendedVariant);
+        }
+    }
+
     public void InvertSelection()
     {
         var next = _recommendations
@@ -80,6 +96,17 @@ public sealed class CollectionReviewState
         foreach (var variant in next)
         {
             _selected.Add(variant);
+        }
+    }
+
+    public void InvertSelection(IEnumerable<GameSelectionPreview> selections)
+    {
+        foreach (var selection in selections.ToList())
+        {
+            if (!_selected.Remove(selection.RecommendedVariant))
+            {
+                _selected.Add(selection.RecommendedVariant);
+            }
         }
     }
 
@@ -137,6 +164,7 @@ public sealed class CollectionReviewState
         {
             rows = rows.Where(selection =>
                 Contains(selection.Title, search) ||
+                Contains(GameTitleIdentity.NormalizeTitle(selection.Title), search) ||
                 Contains(selection.RecommendedVariant, search) ||
                 selection.Alternatives.Any(alternative => Contains(alternative, search)));
         }

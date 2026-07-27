@@ -61,6 +61,36 @@
             </div>
         </section>
 
+        <section class="collection-type-card">
+            <p class="eyebrow">SYSTEM SELECTION</p>
+            <div class="review-controls" aria-label="Collection system selection">
+                <label class="search-box">
+                    Search systems
+                    <input value="@_systemSearchText" @oninput="args => _systemSearchText = args.Value?.ToString() ?? string.Empty" placeholder="System name" />
+                </label>
+                <span class="preview-count">@_selectedSystemKeys.Count.ToString("N0") of @_catalogSystems.Count.ToString("N0") systems selected</span>
+            </div>
+            <div class="selection-actions">
+                <button type="button" @onclick="SelectAllSystems">Select All</button>
+                <button type="button" @onclick="SelectNoSystems">Select None</button>
+            </div>
+            <div class="system-checkbox-grid">
+                @foreach (var system in FilteredCatalogSystems)
+                {
+                    <label class="compact-check">
+                        <input type="checkbox"
+                               checked="@_selectedSystemKeys.Contains(system.SystemKey)"
+                               @onchange="args => ToggleSystem(system.SystemKey, args)" />
+                        @system.Name <small>@system.ReleaseCount.ToString("N0")</small>
+                    </label>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_systemMessage))
+            {
+                <p class="save-message">@_systemMessage</p>
+            }
+        </section>
+
         @if (_collectionType == "1g1r")
         {
         <section class="mode-card">
@@ -71,14 +101,14 @@
                            checked="@(_options.Mode == OneGameOneRomMode.AllGames)"
                            @onchange="() => SetMode(OneGameOneRomMode.AllGames)" />
                     <span class="mode-icon" aria-hidden="true">🌎</span>
-                    <span><strong>1G1R — All Games</strong><small>Keep one best playable copy of every unique game. English is preferred, then your language and region preferences.</small></span>
+                    <span><strong>1G1R — All Games</strong><small>Keep one preferred playable release for every unique game in the selected systems.</small></span>
                 </label>
                 <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.EnglishOnly)">
                     <input type="radio" name="collection-mode" value="@OneGameOneRomMode.EnglishOnly"
                            checked="@(_options.Mode == OneGameOneRomMode.EnglishOnly)"
                            @onchange="() => SetMode(OneGameOneRomMode.EnglishOnly)" />
                     <span class="mode-icon" aria-hidden="true">🇺🇸</span>
-                    <span><strong>1G1R — English Only</strong><small>Keep one best English-capable copy of every unique game.</small></span>
+                    <span><strong>1G1R — English Only</strong><small>Keep one preferred English-capable release for every unique game in the selected systems.</small></span>
                 </label>
             </div>
         </section>
@@ -273,10 +303,10 @@
                 </section>
 
                 <section class="selection-actions" aria-label="Recommendation selection actions">
-                    <button type="button" @onclick="_review.SelectAll">Select All</button>
-                    <button type="button" @onclick="_review.SelectNone">Select None</button>
-                    <button type="button" @onclick="_review.InvertSelection">Invert Selection</button>
-                    <button type="button" @onclick="_review.ResetToAtlasRecommendations">Reset to Atlas Recommendations</button>
+                    <button type="button" @onclick="SelectDisplayedRecommendations">Select All</button>
+                    <button type="button" @onclick="SelectNoDisplayedRecommendations">Select None</button>
+                    <button type="button" @onclick="InvertDisplayedRecommendations">Invert Selection</button>
+                    <button type="button" @onclick="ResetRecommendations">Reset to Atlas Recommendations</button>
                     <button type="button" class="primary" disabled="@(_isSavingOneGameOneRom || _review.SelectedCount == 0)" @onclick="SaveOneGameOneRomAsync">@(_isSavingOneGameOneRom ? "Saving..." : "Review Build")</button>
                 </section>
 
@@ -540,6 +570,10 @@
     private CollectionReviewState _review = new();
     private CollectionReviewFilters _filters = new();
     private CollectionReviewSummaryFilter _summaryFilter = CollectionReviewSummaryFilter.All;
+    private IReadOnlyList<CatalogSystemSummary> _catalogSystems = [];
+    private readonly HashSet<string> _selectedSystemKeys = new(StringComparer.OrdinalIgnoreCase);
+    private string _systemSearchText = string.Empty;
+    private string _systemMessage = string.Empty;
 
     private IReadOnlyList<GameSelectionPreview> DisplayedSelections =>
         _review.Filter(_filters, _summaryFilter);
@@ -565,6 +599,13 @@
 
     private bool ShowingAlternates => _summaryFilter == CollectionReviewSummaryFilter.ExtraVersions;
 
+    private IReadOnlyList<CatalogSystemSummary> FilteredCatalogSystems =>
+        _catalogSystems
+            .Where(system => string.IsNullOrWhiteSpace(_systemSearchText) ||
+                system.Name.Contains(_systemSearchText, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(system => system.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     protected override async Task OnInitializedAsync()
     {
         _scan = await ScanReportService.LoadLatestAsync();
@@ -573,6 +614,8 @@
         _favoritesDestination = Path.Combine(settings.LibraryPath ?? string.Empty, "Favorites");
         _frontend = settings.Frontend;
         _favoriteCount = await Collections.GetFavoriteCountAsync();
+        _catalogSystems = await Collections.GetCatalogSystemsAsync();
+        SelectAllSystems();
         await LoadProfileStateAsync();
         RefreshPreview();
         _isLoading = false;
@@ -593,7 +636,16 @@
         _favoritesMessage = string.Empty;
         try
         {
-            var collection = await Collections.SaveFavoritesCollectionAsync(_favoritesName, _favoritesDestination, _frontend);
+            if (!ValidateSystemSelection())
+            {
+                return;
+            }
+
+            var collection = await Collections.SaveFavoritesCollectionAsync(
+                _favoritesName,
+                _favoritesDestination,
+                _frontend,
+                _selectedSystemKeys);
             _favoritesMessage = $"Saved {collection.Games.Count:N0} games. Opening Build Preview…";
             Navigation.NavigateTo($"/build?collection={collection.Id}");
         }
@@ -611,7 +663,16 @@
     {
         if (_scan is not null)
         {
-            _preview = CollectionRuleService.BuildPreview(_scan, _options);
+            _systemMessage = string.Empty;
+            if (_selectedSystemKeys.Count == 0)
+            {
+                _preview = new CollectionRulePreview { EngineName = "Atlas" };
+                _review = new CollectionReviewState();
+                _systemMessage = "Select at least one system to preview recommendations.";
+                return;
+            }
+
+            _preview = CollectionRuleService.BuildPreview(BuildScopedScan(_scan), _options);
             _review = new CollectionReviewState();
             _review.LoadRecommendations(_preview.Selections);
             _inspectedSelection = null;
@@ -628,6 +689,11 @@
         try
         {
             var selected = _review.GetSelectedFilenames();
+            if (!ValidateSystemSelection())
+            {
+                return;
+            }
+
             if (selected.Count == 0)
             {
                 _oneGameOneRomMessage = "Select at least one game before opening Build Preview.";
@@ -642,7 +708,8 @@
                 name,
                 destination,
                 _frontend,
-                selected);
+                selected,
+                _selectedSystemKeys);
 
             _oneGameOneRomMessage = $"Saved {collection.Games.Count:N0} selected games. Opening Build Preview...";
             Navigation.NavigateTo($"/build?collection={collection.Id}");
@@ -661,6 +728,82 @@
     {
         var selected = args.Value is bool value && value;
         _review.SetSelected(selection, selected);
+    }
+
+    private void SelectDisplayedRecommendations() => _review.SelectAll(DisplayedSelections);
+
+    private void SelectNoDisplayedRecommendations() => _review.SelectNone(DisplayedSelections);
+
+    private void InvertDisplayedRecommendations() => _review.InvertSelection(DisplayedSelections);
+
+    private void ResetRecommendations() => _review.ResetToAtlasRecommendations();
+
+    private void SelectAllSystems()
+    {
+        _selectedSystemKeys.Clear();
+        foreach (var system in _catalogSystems)
+        {
+            _selectedSystemKeys.Add(system.SystemKey);
+        }
+        RefreshPreview();
+    }
+
+    private void SelectNoSystems()
+    {
+        _selectedSystemKeys.Clear();
+        RefreshPreview();
+    }
+
+    private void ToggleSystem(string systemKey, ChangeEventArgs args)
+    {
+        if (args.Value is bool selected && selected)
+        {
+            _selectedSystemKeys.Add(systemKey);
+        }
+        else
+        {
+            _selectedSystemKeys.Remove(systemKey);
+        }
+        RefreshPreview();
+    }
+
+    private bool ValidateSystemSelection()
+    {
+        if (_selectedSystemKeys.Count > 0)
+        {
+            _systemMessage = string.Empty;
+            return true;
+        }
+
+        _systemMessage = "Select at least one system before saving or reviewing a collection.";
+        return false;
+    }
+
+    private ArchiveScanResult BuildScopedScan(ArchiveScanResult scan)
+    {
+        bool Include(DuplicateGroupSummary group) =>
+            string.IsNullOrWhiteSpace(group.SystemKey) ||
+            _selectedSystemKeys.Contains(SystemIdentity.CanonicalKey(group.SystemKey));
+
+        return new ArchiveScanResult
+        {
+            ArchivePath = scan.ArchivePath,
+            StartedAt = scan.StartedAt,
+            CompletedAt = scan.CompletedAt,
+            RecognizedFileCount = scan.OneGameOneRomGroups.Where(Include).Sum(group => group.FileCount),
+            IgnoredFileCount = scan.IgnoredFileCount,
+            Systems = scan.Systems
+                .Where(system => _selectedSystemKeys.Contains(SystemIdentity.CanonicalKey(system.Name)))
+                .ToList(),
+            FileTypes = scan.FileTypes,
+            Regions = scan.Regions,
+            Languages = scan.Languages,
+            SpecialTags = scan.SpecialTags,
+            OneGameOneRomGroups = scan.OneGameOneRomGroups.Where(Include).ToList(),
+            DuplicateGroups = scan.DuplicateGroups.Where(Include).ToList(),
+            MultiDiscGroups = scan.MultiDiscGroups,
+            Warnings = scan.Warnings
+        };
     }
 
     private void ToggleSummaryFilter(CollectionReviewSummaryFilter filter)

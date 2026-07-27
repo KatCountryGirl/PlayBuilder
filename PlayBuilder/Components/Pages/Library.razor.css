@@ -242,6 +242,53 @@
     font-size: .72rem;
 }
 
+.manage-systems-panel {
+    margin-top: .9rem;
+    padding-top: .8rem;
+    border-top: 1px solid var(--pb-border);
+    color: var(--pb-text-muted);
+    font-size: .72rem;
+}
+
+.manage-systems-panel summary {
+    color: var(--pb-text);
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.system-list.compact {
+    max-height: 190px;
+    margin-top: .6rem;
+}
+
+.system-remove-row {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem 0;
+}
+
+.system-remove-row span {
+    color: var(--pb-text-soft);
+}
+
+.manage-systems-panel button {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid var(--pb-border);
+    border-radius: 9px;
+    background: rgba(255,255,255,.04);
+    color: var(--pb-text);
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.manage-systems-panel button:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
 .games-panel {
     min-width: 0;
     background: rgba(16, 15, 23, .4);

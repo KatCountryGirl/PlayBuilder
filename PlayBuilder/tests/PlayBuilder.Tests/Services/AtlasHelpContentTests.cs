@@ -60,7 +60,8 @@ public sealed class AtlasHelpContentTests
         Assert.Contains("Destination folder", text);
         Assert.Contains("Frontend", text);
         Assert.Contains("read-only", text);
-        Assert.Contains("Rescan", text);
+        Assert.Contains("Add or Update Games", text);
+        Assert.Contains("Replace Entire Catalog", text);
         Assert.Contains("Game file count", text);
         Assert.Contains("1G1R group count", text);
     }

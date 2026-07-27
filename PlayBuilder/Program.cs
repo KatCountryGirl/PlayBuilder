@@ -18,6 +18,7 @@ builder.Services.AddSingleton<ICollectionService, CollectionService>();
 builder.Services.AddSingleton<IGameScanWorkflowService, GameScanWorkflowService>();
 builder.Services.AddSingleton<IGameScanSessionService, GameScanSessionService>();
 builder.Services.AddSingleton<IFolderPickerService, WindowsFolderPickerService>();
+builder.Services.AddSingleton<ICatalogService, CatalogService>();
 
 // Atlas is registered as a parallel decision engine during its staged migration.
 builder.Services.AddSingleton<FilenameTokenizer>();

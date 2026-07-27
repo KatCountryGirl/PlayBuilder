@@ -135,7 +135,8 @@ public sealed class GameScanSessionServiceTests
         public Task<ArchiveScanResult> ScanAndSaveAsync(
             PlayBuilderSettings settings,
             IProgress<ArchiveScanProgress>? progress = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            CatalogScanMode mode = CatalogScanMode.AddOrUpdate)
         {
             StartCount++;
             _progress = progress;

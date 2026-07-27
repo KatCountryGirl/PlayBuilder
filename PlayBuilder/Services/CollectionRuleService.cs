@@ -72,6 +72,8 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
             preview.Selections.Add(new GameSelectionPreview
             {
                 Title = group.Title,
+                System = group.System,
+                SystemKey = group.SystemKey,
                 RecommendedVariant = winner.Name,
                 RecommendedRegion = winner.Region,
                 RecommendedLanguage = winner.PrimaryLanguage,

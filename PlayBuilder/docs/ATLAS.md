@@ -24,6 +24,8 @@ English-only mode removes candidates that cannot be identified as English before
 
 Atlas receives candidates from scan groups that are already scoped by canonical system and normalized game title. Atlas still compares candidates deterministically within each group; it does not merge matching titles across different systems.
 
+Distinct discs in a multi-disc set are grouped as required components of the same game, not as duplicate release alternatives. Duplicate selection can still occur between alternate copies of the same disc position.
+
 ## Explanations
 
 The final decision contains structured reasons describing which rules favored the winner over the runner-up. The Collection Builder displays these reasons without changing the source archive.

@@ -49,6 +49,8 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
             preview.Selections.Add(new GameSelectionPreview
             {
                 Title = group.Title,
+                System = group.System,
+                SystemKey = group.SystemKey,
                 RecommendedVariant = metadata.FileName,
                 RecommendedRegion = metadata.Region,
                 RecommendedLanguage = metadata.PrimaryLanguage,

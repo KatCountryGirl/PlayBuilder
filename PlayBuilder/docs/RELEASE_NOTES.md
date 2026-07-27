@@ -14,6 +14,10 @@ The Library Systems panel now uses a stable wider desktop column instead of a co
 
 Duplicate groups now mean groups of two or more releases that appear to represent the same game on the same canonical system. Matching titles on different systems, such as the same game name on SNES and Genesis, are kept separate. Older saved scan reports that do not include system-scoped group keys are repaired from the SQLite catalog when loaded.
 
+Standard scans now add or update PlayBuilder catalog entries instead of replacing unrelated systems. Scan Games exposes Replace Entire Catalog only as an advanced confirmed action, and Library adds Manage Systems for intentionally removing catalog systems without touching original game files.
+
+Multi-disc sets are no longer counted as duplicate release groups simply because Disc 1 and Disc 2 share a title. Collection Builder and Build Preview keep current saved collection types flowing through one review path, with selected-system scope and system filtering.
+
 Collection Builder now uses real checkboxes for reviewed recommendations. Every Atlas recommendation starts selected, users can exclude individual games, selection state survives filtering, and Build Preview uses the checked set without changing Atlas decisions. Summary cards now filter confident choices, needs-review items, and extra versions for faster review.
 
 Ask Atlas now gives page-specific help across the main app. The guidance explains what each page is for, the main controls, next steps, safety notes, and common confusion points in beginner-friendly language.
@@ -25,12 +29,15 @@ The source archive remains untouched. This release only previews recommendations
 - Rebuild the PlayBuilder project.
 - Run the application.
 - Open Scan Games from the sidebar and confirm the page loads.
-- Rescan the archive, then open Collection Builder.
+- Add or update games from the archive, then open Collection Builder.
 - Confirm a scan continues after navigating away from Scan Games and returning.
 - Confirm Scan Games Browse buttons open a folder picker on Windows.
 - Confirm Library system filtering and system-name search work alongside the Systems panel.
 - Confirm matching titles on different systems are not counted as duplicate groups.
 - Confirm the Library duplicate-status filter only shows same-system alternate releases.
+- Confirm scanning one system and then another keeps both systems in the catalog.
+- Confirm Replace Entire Catalog requires confirmation and changes only PlayBuilder catalog records.
+- Confirm multi-disc games are not counted as duplicate groups when the only multiple files are required discs.
 - Confirm the heading identifies Atlas and expanded recommendations show decision reasons.
 - Confirm Collection Builder selections can be checked, unchecked, reset, and sent to Build Preview.
 - Confirm Ask Atlas content changes as the user moves between the main navigation pages.
