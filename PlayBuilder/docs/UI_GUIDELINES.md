@@ -23,7 +23,11 @@ The UI should feel friendly, understandable, and safe for users who do not know 
 - Duplicate indicators should explain that they mean same-system alternate releases, not byte-for-byte identical files.
 - Default scanning language should say Add or Update Games. Catalog replacement must be advanced, confirmed, and clear that original game files are not changed.
 - Collection Builder bulk actions should describe and affect the currently filtered result set.
-- Favorites collections should be described as saved collections built from games marked as favorites in Library.
+- System search in Collection Builder should be alias-aware, partial-match capable, and visibility-only until the user chooses Select Matching, Select All, Select None, or an individual checkbox.
+- System selection controls should remain visible above a bounded scrollable system list, with selected counts updating immediately.
+- Favorites collections should be described as saved build plans created from explicitly selected favorite games, while Library remains the place to manage the scanned catalog and favorite flags.
+- Future cleanup or quarantine controls must preserve source directory structure and must never imply destructive source-file changes without an explicit reviewed plan.
+- Future system artwork should use owned or permissively licensed media-category icons and should never hide the checkbox or system name.
 - Maintain the existing PlayBuilder visual language unless a redesign is approved.
 
 ## Accessibility

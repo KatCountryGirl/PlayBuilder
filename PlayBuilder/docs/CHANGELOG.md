@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- Collection Builder now has alias-aware system search, including `snes`, `nes`, `genesis`, `megadrive`, and `psp`.
+- Collection Builder system selection now includes Select Matching for intentionally choosing only the visible system search results.
+- Favorites now includes a collection-building search and selection area for finding catalog games, marking favorites, removing favorite flags, and saving a Favorites build plan.
+- System cards now expose a lightweight media category resolver for later owned or permissively licensed artwork.
 - Standard scans now add or update catalog entries instead of replacing unrelated systems.
 - Scan Games now separates the default Add or Update Games action from an advanced, confirmed Replace Entire Catalog action.
 - Library now includes Manage Systems catalog removal with confirmation and affected release counts.
@@ -24,6 +28,8 @@
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- Recommendation row keys and selection state now use stable system-aware identifiers so duplicate filenames across systems do not break rendering or saved build plans.
+- Library and Favorites wording now distinguishes catalog management from building a playable Favorites collection.
 - Multi-disc sets no longer count distinct required discs as duplicate releases.
 - Collection Builder selection actions now apply to the currently filtered recommendation list and preserve selections across filters.
 - Favorites collection wording now clarifies that saved Favorites collections are built from games marked as favorites in Library.
@@ -39,6 +45,10 @@
 - Atlas explanations now identify the first deterministic rule that selected the winner before listing any supporting rule matches.
 
 ### Fixed
+- Fixed a Blazor unhandled-error banner in Collection Builder caused by duplicate `@key` values when multiple recommendation rows shared the same filename.
+- Fixed system search using only plain display-name matching instead of canonical aliases and whitespace-tolerant partial matching.
+- Fixed recommendation search so it also matches system names and stable normalized titles.
+- Fixed Favorites search so metadata fields that do not exist yet do not break keyword matching.
 - Fixed the Scan Games navigation link returning Not Found.
 - Fixed 1G1R previews only showing duplicate title groups instead of recommending singleton title groups automatically.
 

@@ -32,3 +32,7 @@ Every coding milestone must:
 - Preserve working legacy behavior until its replacement is tested and integrated.
 - Treat duplicate groups as same-system alternate releases, not matching titles across different systems.
 - Standard scans must be non-destructive catalog additions or updates unless the user explicitly confirms catalog replacement.
+- Library manages the scanned catalog, release inspection, duplicate review, metadata, catalog removal, and favorite flags.
+- Collections > Favorites builds a playable collection from explicitly selected games; Atlas must not decide personal favorites.
+- Collection Builder system selection must support alias-aware search and explicit Select Matching behavior without silently changing selection on search.
+- Future quarantine must preserve source directory structure below a configured quarantine root, detect collisions, and store restoration records before any file move occurs.

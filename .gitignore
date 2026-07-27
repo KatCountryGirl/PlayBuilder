@@ -63,6 +63,12 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 PlayBuilder/config/atlas-profiles.json
+PlayBuilder/config/latest-scan.json
+PlayBuilder/config/settings.json
+PlayBuilder/playbuilder.db
+PlayBuilder/playbuilder.db-shm
+PlayBuilder/playbuilder.db-wal
+PlayBuilder/PlayBuilderBible.txt
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

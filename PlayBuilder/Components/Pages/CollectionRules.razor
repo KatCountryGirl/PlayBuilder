@@ -40,7 +40,7 @@
                 {
                     <button class="collection-type-option active-@(_collectionType == type.Id)"
                             type="button"
-                            @onclick="() => _collectionType = type.Id">
+                            @onclick="() => SetCollectionTypeAsync(type.Id)">
                         <span aria-hidden="true">@type.Icon</span>
                         <strong>@type.Title</strong>
                         <small>@type.Description</small>
@@ -61,27 +61,31 @@
             </div>
         </section>
 
-        <section class="collection-type-card">
-            <p class="eyebrow">SYSTEM SELECTION</p>
+        <section class="collection-type-card system-selection-card">
+            <p class="eyebrow">CHOOSE SYSTEMS</p>
             <div class="review-controls" aria-label="Collection system selection">
                 <label class="search-box">
                     Search systems
-                    <input value="@_systemSearchText" @oninput="args => _systemSearchText = args.Value?.ToString() ?? string.Empty" placeholder="System name" />
+                <input @bind="_systemSelection.SearchText" @bind:event="oninput" placeholder="System name or alias" aria-label="Search systems" />
                 </label>
-                <span class="preview-count">@_selectedSystemKeys.Count.ToString("N0") of @_catalogSystems.Count.ToString("N0") systems selected</span>
+                <span class="preview-count">@_systemSelection.SelectedCount.ToString("N0") of @_systemSelection.Systems.Count.ToString("N0") systems selected · @FilteredCatalogSystems.Count.ToString("N0") visible</span>
             </div>
+            <p class="selected-system-summary">@SelectedSystemsSummary</p>
             <div class="selection-actions">
-                <button type="button" @onclick="SelectAllSystems">Select All</button>
-                <button type="button" @onclick="SelectNoSystems">Select None</button>
+                <button type="button" @onclick="SelectAllSystemsAsync">Select All</button>
+                <button type="button" @onclick="SelectNoSystemsAsync">Select None</button>
+                <button type="button" disabled="@(FilteredCatalogSystems.Count == 0)" @onclick="SelectMatchingSystemsAsync">Select Matching</button>
             </div>
             <div class="system-checkbox-grid">
                 @foreach (var system in FilteredCatalogSystems)
                 {
-                    <label class="compact-check">
+                    <label class="compact-check system-card" @key="system.SystemKey">
                         <input type="checkbox"
-                               checked="@_selectedSystemKeys.Contains(system.SystemKey)"
-                               @onchange="args => ToggleSystem(system.SystemKey, args)" />
-                        @system.Name <small>@system.ReleaseCount.ToString("N0")</small>
+                               checked="@_systemSelection.IsSelected(system.SystemKey)"
+                               @onchange="args => ToggleSystemAsync(system.SystemKey, args)" />
+                        <span class="system-media" aria-hidden="true">@SystemMediaIcon(system)</span>
+                        <span>@system.Name <small>@SystemIdentity.ResolveMediaType(system.Name, system.SystemKey)</small></span>
+                        <small>@system.ReleaseCount.ToString("N0")</small>
                     </label>
                 }
             </div>
@@ -275,7 +279,7 @@
                 <section class="review-controls" aria-label="Recommendation filters and selection controls">
                     <label class="search-box">
                         Search
-                        <input value="@_filters.SearchText" @oninput="args => _filters.SearchText = args.Value?.ToString() ?? string.Empty" placeholder="Title or filename" />
+                        <input @bind="_filters.SearchText" @bind:event="oninput" placeholder="Title, filename, or system" />
                     </label>
                     <label>
                         Language
@@ -330,7 +334,7 @@
                         <div class="alternate-list">
                             @foreach (var alternate in DisplayedAlternates.Take(80))
                             {
-                                <article class="alternate-card">
+                                <article class="alternate-card" @key="AlternateKey(alternate)">
                                     <span>@alternate.Title</span>
                                     <strong>@alternate.AlternateFilename</strong>
                                     <small>Winner: @alternate.SelectedWinner</small>
@@ -348,7 +352,7 @@
                     <div class="selection-list">
                         @foreach (var selection in DisplayedSelections.Take(80))
                         {
-                            <details class="selection-card fallback-@selection.IsFallback.ToString().ToLowerInvariant()" @key="selection.RecommendedVariant">
+                            <details class="selection-card fallback-@selection.IsFallback.ToString().ToLowerInvariant()" @key="selection.SelectionKey">
                                 <summary>
                                     <label class="selection-status real-check" @onclick:stopPropagation="true">
                                         <input type="checkbox" checked="@_review.IsSelected(selection)" @onchange="args => ToggleSelection(selection, args)" />
@@ -415,15 +419,66 @@
                 <div class="favorites-copy">
                     <p class="eyebrow">FAVORITES COLLECTION</p>
                     <h2>Build your personal must-play library</h2>
-                    <p>Games marked with a star in Library are included. Saving creates a persistent collection you can review before any files are copied.</p>
-                    <div class="favorite-count"><span>⭐</span><strong>@_favoriteCount.ToString("N0")</strong><small>favorite releases selected</small></div>
+                    <p>Favorites is where you build a playable collection from games you like. The favorite flag marks games in your catalog; the saved Favorites collection is the build plan you review next.</p>
+                    <div class="favorite-count"><span>⭐</span><strong>@_favoriteCount.ToString("N0")</strong><small>favorite releases marked</small></div>
                 </div>
                 <div class="favorites-form">
                     <label>Collection name<input @bind="_favoritesName" /></label>
                     <label>Destination folder<input @bind="_favoritesDestination" /></label>
-                    <button type="button" disabled="@(_favoriteCount == 0 || _isSavingFavorites)" @onclick="SaveFavoritesAsync">@(_isSavingFavorites ? "Saving…" : "Save Favorites Collection")</button>
+                    <button type="button" disabled="@(_selectedFavoriteGameIds.Count == 0 || _isSavingFavorites)" @onclick="SaveFavoritesAsync">@(_isSavingFavorites ? "Saving..." : "Save Favorites Collection")</button>
                     @if (!string.IsNullOrWhiteSpace(_favoritesMessage)) { <p class="save-message">@_favoritesMessage</p> }
                 </div>
+            </section>
+
+            <section class="favorites-search-panel">
+                <div class="preview-heading">
+                    <div>
+                        <p class="eyebrow">FIND FAVORITE GAMES</p>
+                        <h2>Search the selected systems</h2>
+                    </div>
+                    <span class="preview-count">@_selectedFavoriteGameIds.Count.ToString("N0") selected · @_favoriteResults.Count.ToString("N0") shown</span>
+                </div>
+                <div class="review-controls">
+                    <label class="search-box">
+                        Search favorites
+                        <input value="@_favoriteSearchText" @oninput="SetFavoriteSearchAsync" placeholder="Mario, filename, system, genre, or series" />
+                    </label>
+                </div>
+                <div class="selection-actions">
+                    <button type="button" disabled="@(_favoriteResults.Count == 0)" @onclick="SelectAllMatchingFavorites">Select all matching games</button>
+                    <button type="button" disabled="@(_favoriteResults.Count == 0)" @onclick="DeselectAllMatchingFavorites">Deselect all matching games</button>
+                    <button type="button" disabled="@(_selectedFavoriteGameIds.Count == 0)" @onclick="AddSelectedFavoritesAsync">Add selected games to Favorites</button>
+                    <button type="button" disabled="@(_selectedFavoriteGameIds.Count == 0)" @onclick="RemoveSelectedFavoritesAsync">Remove selected games from Favorites</button>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_favoritesSearchMessage))
+                {
+                    <p class="save-message">@_favoritesSearchMessage</p>
+                }
+                @if (_favoriteResults.Count == 0)
+                {
+                    <div class="empty-preview">No matching games were found. Try another search or select additional systems.</div>
+                }
+                else
+                {
+                    <div class="favorite-results-list">
+                        @foreach (var game in _favoriteResults)
+                        {
+                            <label class="favorite-result-card" @key="game.GameId">
+                                <input type="checkbox"
+                                       checked="@_selectedFavoriteGameIds.Contains(game.GameId)"
+                                       @onchange="args => ToggleFavoriteSelection(game.GameId, args)" />
+                                <span>
+                                    <strong>@game.Title</strong>
+                                    <small>@game.OriginalFilename</small>
+                                </span>
+                                <span>@game.System</span>
+                                <span>@game.Region</span>
+                                <span>@game.Language</span>
+                                <b class="favorite-flag active-@game.IsFavorite.ToString().ToLowerInvariant()">@(game.IsFavorite ? "Favorite" : "Not favorite")</b>
+                            </label>
+                        }
+                    </div>
+                }
             </section>
         }
         else
@@ -564,15 +619,17 @@
     private string _frontend = string.Empty;
     private bool _isSavingFavorites;
     private string _favoritesMessage = string.Empty;
+    private string _favoriteSearchText = string.Empty;
+    private string _favoritesSearchMessage = string.Empty;
+    private IReadOnlyList<FavoriteGameSearchResult> _favoriteResults = [];
+    private readonly HashSet<int> _selectedFavoriteGameIds = [];
     private bool _isSavingOneGameOneRom;
     private string _oneGameOneRomMessage = string.Empty;
     private GameSelectionPreview? _inspectedSelection;
     private CollectionReviewState _review = new();
     private CollectionReviewFilters _filters = new();
     private CollectionReviewSummaryFilter _summaryFilter = CollectionReviewSummaryFilter.All;
-    private IReadOnlyList<CatalogSystemSummary> _catalogSystems = [];
-    private readonly HashSet<string> _selectedSystemKeys = new(StringComparer.OrdinalIgnoreCase);
-    private string _systemSearchText = string.Empty;
+    private readonly SystemSelectionState _systemSelection = new();
     private string _systemMessage = string.Empty;
 
     private IReadOnlyList<GameSelectionPreview> DisplayedSelections =>
@@ -600,11 +657,35 @@
     private bool ShowingAlternates => _summaryFilter == CollectionReviewSummaryFilter.ExtraVersions;
 
     private IReadOnlyList<CatalogSystemSummary> FilteredCatalogSystems =>
-        _catalogSystems
-            .Where(system => string.IsNullOrWhiteSpace(_systemSearchText) ||
-                system.Name.Contains(_systemSearchText, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(system => system.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        _systemSelection.FilteredSystems;
+
+    private string SelectedSystemsSummary
+    {
+        get
+        {
+            if (_systemSelection.SelectedCount == 0)
+            {
+                return "No systems selected.";
+            }
+
+            if (_systemSelection.SelectedCount == _systemSelection.Systems.Count)
+            {
+                return "All systems are selected.";
+            }
+
+            var selectedNames = _systemSelection.Systems
+                .Where(system => _systemSelection.IsSelected(system.SystemKey))
+                .OrderBy(system => system.Name, StringComparer.OrdinalIgnoreCase)
+                .Take(4)
+                .Select(system => system.Name)
+                .ToList();
+
+            var remaining = _systemSelection.SelectedCount - selectedNames.Count;
+            return remaining > 0
+                ? $"{string.Join(", ", selectedNames)} and {remaining:N0} more selected."
+                : $"{string.Join(", ", selectedNames)} selected.";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -614,8 +695,7 @@
         _favoritesDestination = Path.Combine(settings.LibraryPath ?? string.Empty, "Favorites");
         _frontend = settings.Frontend;
         _favoriteCount = await Collections.GetFavoriteCountAsync();
-        _catalogSystems = await Collections.GetCatalogSystemsAsync();
-        SelectAllSystems();
+        _systemSelection.Load(await Collections.GetCatalogSystemsAsync());
         await LoadProfileStateAsync();
         RefreshPreview();
         _isLoading = false;
@@ -645,8 +725,9 @@
                 _favoritesName,
                 _favoritesDestination,
                 _frontend,
-                _selectedSystemKeys);
-            _favoritesMessage = $"Saved {collection.Games.Count:N0} games. Opening Build Preview…";
+                _systemSelection.SelectedSystemKeys,
+                _selectedFavoriteGameIds);
+            _favoritesMessage = $"Saved {collection.Games.Count:N0} games. Opening Build Preview...";
             Navigation.NavigateTo($"/build?collection={collection.Id}");
         }
         catch (Exception ex)
@@ -664,7 +745,7 @@
         if (_scan is not null)
         {
             _systemMessage = string.Empty;
-            if (_selectedSystemKeys.Count == 0)
+            if (_systemSelection.SelectedCount == 0)
             {
                 _preview = new CollectionRulePreview { EngineName = "Atlas" };
                 _review = new CollectionReviewState();
@@ -688,7 +769,7 @@
 
         try
         {
-            var selected = _review.GetSelectedFilenames();
+            var selected = _review.GetSelectedSelectionKeys();
             if (!ValidateSystemSelection())
             {
                 return;
@@ -709,7 +790,7 @@
                 destination,
                 _frontend,
                 selected,
-                _selectedSystemKeys);
+                _systemSelection.SelectedSystemKeys);
 
             _oneGameOneRomMessage = $"Saved {collection.Games.Count:N0} selected games. Opening Build Preview...";
             Navigation.NavigateTo($"/build?collection={collection.Id}");
@@ -730,46 +811,75 @@
         _review.SetSelected(selection, selected);
     }
 
-    private void SelectDisplayedRecommendations() => _review.SelectAll(DisplayedSelections);
+    private void SelectDisplayedRecommendations() => _review.SelectAll(DisplayedSelections.ToList());
 
-    private void SelectNoDisplayedRecommendations() => _review.SelectNone(DisplayedSelections);
+    private void SelectNoDisplayedRecommendations() => _review.SelectNone(DisplayedSelections.ToList());
 
-    private void InvertDisplayedRecommendations() => _review.InvertSelection(DisplayedSelections);
+    private void InvertDisplayedRecommendations() => _review.InvertSelection(DisplayedSelections.ToList());
 
     private void ResetRecommendations() => _review.ResetToAtlasRecommendations();
 
-    private void SelectAllSystems()
+    private async Task SetCollectionTypeAsync(string typeId)
     {
-        _selectedSystemKeys.Clear();
-        foreach (var system in _catalogSystems)
+        _collectionType = typeId;
+        if (_collectionType == "favorites")
         {
-            _selectedSystemKeys.Add(system.SystemKey);
+            await RefreshFavoriteResultsAsync();
         }
-        RefreshPreview();
     }
 
-    private void SelectNoSystems()
+    private void SelectAllSystemKeys()
     {
-        _selectedSystemKeys.Clear();
-        RefreshPreview();
+        _systemSelection.SelectAll();
     }
 
-    private void ToggleSystem(string systemKey, ChangeEventArgs args)
+    private async Task SelectAllSystemsAsync()
+    {
+        SelectAllSystemKeys();
+        await RefreshAfterSystemSelectionAsync();
+    }
+
+    private async Task SelectNoSystemsAsync()
+    {
+        _systemSelection.SelectNone();
+        await RefreshAfterSystemSelectionAsync();
+    }
+
+    private async Task SelectMatchingSystemsAsync()
+    {
+        _systemSelection.SelectMatching();
+
+        await RefreshAfterSystemSelectionAsync();
+    }
+
+    private async Task ToggleSystemAsync(string systemKey, ChangeEventArgs args)
     {
         if (args.Value is bool selected && selected)
         {
-            _selectedSystemKeys.Add(systemKey);
+            _systemSelection.Toggle(systemKey, true);
         }
         else
         {
-            _selectedSystemKeys.Remove(systemKey);
+            _systemSelection.Toggle(systemKey, false);
+            _selectedFavoriteGameIds.RemoveWhere(gameId =>
+                _favoriteResults.Any(game => game.GameId == gameId && game.SystemKey.Equals(systemKey, StringComparison.OrdinalIgnoreCase)));
         }
+
+        await RefreshAfterSystemSelectionAsync();
+    }
+
+    private async Task RefreshAfterSystemSelectionAsync()
+    {
         RefreshPreview();
+        if (_collectionType == "favorites")
+        {
+            await RefreshFavoriteResultsAsync();
+        }
     }
 
     private bool ValidateSystemSelection()
     {
-        if (_selectedSystemKeys.Count > 0)
+        if (_systemSelection.SelectedCount > 0)
         {
             _systemMessage = string.Empty;
             return true;
@@ -783,7 +893,7 @@
     {
         bool Include(DuplicateGroupSummary group) =>
             string.IsNullOrWhiteSpace(group.SystemKey) ||
-            _selectedSystemKeys.Contains(SystemIdentity.CanonicalKey(group.SystemKey));
+            _systemSelection.IsSelected(SystemIdentity.CanonicalKey(group.SystemKey));
 
         return new ArchiveScanResult
         {
@@ -793,7 +903,7 @@
             RecognizedFileCount = scan.OneGameOneRomGroups.Where(Include).Sum(group => group.FileCount),
             IgnoredFileCount = scan.IgnoredFileCount,
             Systems = scan.Systems
-                .Where(system => _selectedSystemKeys.Contains(SystemIdentity.CanonicalKey(system.Name)))
+                .Where(system => _systemSelection.IsSelected(SystemIdentity.CanonicalKey(system.Name)))
                 .ToList(),
             FileTypes = scan.FileTypes,
             Regions = scan.Regions,
@@ -805,6 +915,75 @@
             Warnings = scan.Warnings
         };
     }
+
+    private async Task SetFavoriteSearchAsync(ChangeEventArgs args)
+    {
+        _favoriteSearchText = args.Value?.ToString() ?? string.Empty;
+        await RefreshFavoriteResultsAsync();
+    }
+
+    private async Task RefreshFavoriteResultsAsync()
+    {
+        _favoritesSearchMessage = string.Empty;
+        _favoriteResults = await Collections.SearchFavoriteGamesAsync(_favoriteSearchText, _systemSelection.SelectedSystemKeys);
+    }
+
+    private void ToggleFavoriteSelection(int gameId, ChangeEventArgs args)
+    {
+        if (args.Value is bool selected && selected)
+        {
+            _selectedFavoriteGameIds.Add(gameId);
+        }
+        else
+        {
+            _selectedFavoriteGameIds.Remove(gameId);
+        }
+    }
+
+    private void SelectAllMatchingFavorites()
+    {
+        foreach (var game in _favoriteResults)
+        {
+            _selectedFavoriteGameIds.Add(game.GameId);
+        }
+    }
+
+    private void DeselectAllMatchingFavorites()
+    {
+        foreach (var game in _favoriteResults)
+        {
+            _selectedFavoriteGameIds.Remove(game.GameId);
+        }
+    }
+
+    private async Task AddSelectedFavoritesAsync()
+    {
+        var changed = await Collections.SetFavoritesAsync(_selectedFavoriteGameIds, true);
+        _favoriteCount = await Collections.GetFavoriteCountAsync();
+        await RefreshFavoriteResultsAsync();
+        _favoritesSearchMessage = $"Marked {changed:N0} selected games as favorites.";
+    }
+
+    private async Task RemoveSelectedFavoritesAsync()
+    {
+        var changed = await Collections.SetFavoritesAsync(_selectedFavoriteGameIds, false);
+        _favoriteCount = await Collections.GetFavoriteCountAsync();
+        await RefreshFavoriteResultsAsync();
+        _favoritesSearchMessage = $"Removed favorite flags from {changed:N0} selected games.";
+    }
+
+    private static string AlternateKey(CollectionReviewAlternate alternate) =>
+        $"{alternate.Selection.SelectionKey}|{alternate.AlternateFilename}";
+
+    private static string SystemMediaIcon(CatalogSystemSummary system) =>
+        SystemIdentity.ResolveMediaType(system.Name, system.SystemKey) switch
+        {
+            "Arcade board" => "▦",
+            "Optical disc" => "◉",
+            "Floppy disk" => "▣",
+            "Cassette" => "▭",
+            _ => "▤"
+        };
 
     private void ToggleSummaryFilter(CollectionReviewSummaryFilter filter)
     {

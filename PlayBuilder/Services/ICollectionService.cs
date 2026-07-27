@@ -17,6 +17,7 @@ public interface ICollectionService
         string destinationPath,
         string frontend,
         IEnumerable<string>? selectedSystemKeys = null,
+        IEnumerable<int>? selectedGameIds = null,
         CancellationToken cancellationToken = default);
 
     Task<Collection> SaveOneGameOneRomCollectionAsync(
@@ -32,6 +33,11 @@ public interface ICollectionService
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<CatalogSystemSummary>> GetCatalogSystemsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<FavoriteGameSearchResult>> SearchFavoriteGamesAsync(
+        string searchText,
+        IEnumerable<string>? selectedSystemKeys = null,
         CancellationToken cancellationToken = default);
 
     Task<bool> ToggleFavoriteAsync(

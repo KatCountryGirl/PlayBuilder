@@ -65,6 +65,35 @@ public sealed class CollectionReviewStateTests
     }
 
     [Fact]
+    public void Filter_SearchesFriendlyTitleFilenameAndSystem()
+    {
+        var state = CreateState();
+
+        Assert.Single(state.Filter(new CollectionReviewFilters { SearchText = "gamma" }, CollectionReviewSummaryFilter.All));
+        Assert.Single(state.Filter(new CollectionReviewFilters { SearchText = "Alt" }, CollectionReviewSummaryFilter.All));
+        Assert.Equal(2, state.Filter(new CollectionReviewFilters { SearchText = "snes" }, CollectionReviewSummaryFilter.All).Count);
+    }
+
+    [Fact]
+    public void Filter_CombinesFiltersWithAndBehavior()
+    {
+        var state = CreateState();
+        state.SetSelected(Recommendations[1], false);
+
+        var rows = state.Filter(
+            new CollectionReviewFilters
+            {
+                SearchText = "snes",
+                Language = "English",
+                Region = "USA",
+                SelectedOnly = true
+            },
+            CollectionReviewSummaryFilter.All);
+
+        Assert.Equal(["Alpha", "Gamma"], rows.Select(row => row.Title));
+    }
+
+    [Fact]
     public void GetAlternates_ReturnsExtraVersionDisplayData()
     {
         var state = CreateState();
@@ -96,11 +125,43 @@ public sealed class CollectionReviewStateTests
         Assert.True(state.IsSelected(Recommendations[2]));
     }
 
+    [Fact]
+    public void StableSelectionKeys_KeepDuplicateFilenamesSeparateAcrossSystems()
+    {
+        var state = new CollectionReviewState();
+        var recommendations = new[]
+        {
+            new GameSelectionPreview
+            {
+                Title = "Same Game",
+                System = "System A",
+                SystemKey = "system-a",
+                RecommendedVariant = "Same Game (USA).zip"
+            },
+            new GameSelectionPreview
+            {
+                Title = "Same Game",
+                System = "System B",
+                SystemKey = "system-b",
+                RecommendedVariant = "Same Game (USA).zip"
+            }
+        };
+
+        state.LoadRecommendations(recommendations);
+        state.SetSelected(recommendations[0], false);
+
+        Assert.False(state.IsSelected(recommendations[0]));
+        Assert.True(state.IsSelected(recommendations[1]));
+        Assert.Equal(1, state.SelectedCount);
+    }
+
     private static readonly GameSelectionPreview[] Recommendations =
     [
         new()
         {
             Title = "Alpha",
+            System = "SNES",
+            SystemKey = "snes",
             RecommendedVariant = "Alpha (USA).zip",
             RecommendedLanguage = "English",
             RecommendedRegion = "USA",
@@ -110,6 +171,8 @@ public sealed class CollectionReviewStateTests
         new()
         {
             Title = "Beta",
+            System = "Genesis",
+            SystemKey = "sega-genesis",
             RecommendedVariant = "Beta (Japan).zip",
             RecommendedLanguage = "Japanese",
             RecommendedRegion = "Japan",
@@ -120,6 +183,8 @@ public sealed class CollectionReviewStateTests
         new()
         {
             Title = "Gamma",
+            System = "SNES",
+            SystemKey = "snes",
             RecommendedVariant = "Gamma (USA).zip",
             RecommendedLanguage = "English",
             RecommendedRegion = "USA",

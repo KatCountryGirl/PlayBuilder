@@ -44,17 +44,17 @@ public sealed class CollectionReviewState
     }
 
     public bool IsSelected(GameSelectionPreview selection) =>
-        _selected.Contains(selection.RecommendedVariant);
+        _selected.Contains(SelectionKey(selection));
 
     public void SetSelected(GameSelectionPreview selection, bool isSelected)
     {
         if (isSelected)
         {
-            _selected.Add(selection.RecommendedVariant);
+            _selected.Add(SelectionKey(selection));
         }
         else
         {
-            _selected.Remove(selection.RecommendedVariant);
+            _selected.Remove(SelectionKey(selection));
         }
     }
 
@@ -63,7 +63,7 @@ public sealed class CollectionReviewState
         _selected.Clear();
         foreach (var selection in _recommendations)
         {
-            _selected.Add(selection.RecommendedVariant);
+            _selected.Add(SelectionKey(selection));
         }
     }
 
@@ -73,7 +73,7 @@ public sealed class CollectionReviewState
     {
         foreach (var selection in selections)
         {
-            _selected.Add(selection.RecommendedVariant);
+            _selected.Add(SelectionKey(selection));
         }
     }
 
@@ -81,7 +81,7 @@ public sealed class CollectionReviewState
     {
         foreach (var selection in selections)
         {
-            _selected.Remove(selection.RecommendedVariant);
+            _selected.Remove(SelectionKey(selection));
         }
     }
 
@@ -89,7 +89,7 @@ public sealed class CollectionReviewState
     {
         var next = _recommendations
             .Where(selection => !IsSelected(selection))
-            .Select(selection => selection.RecommendedVariant)
+            .Select(SelectionKey)
             .ToList();
 
         _selected.Clear();
@@ -103,9 +103,10 @@ public sealed class CollectionReviewState
     {
         foreach (var selection in selections.ToList())
         {
-            if (!_selected.Remove(selection.RecommendedVariant))
+            var key = SelectionKey(selection);
+            if (!_selected.Remove(key))
             {
-                _selected.Add(selection.RecommendedVariant);
+                _selected.Add(key);
             }
         }
     }
@@ -116,6 +117,12 @@ public sealed class CollectionReviewState
         _recommendations
             .Where(IsSelected)
             .Select(selection => selection.RecommendedVariant)
+            .ToList();
+
+    public IReadOnlyList<string> GetSelectedSelectionKeys() =>
+        _recommendations
+            .Where(IsSelected)
+            .Select(selection => selection.SelectionKey)
             .ToList();
 
     public IReadOnlyList<GameSelectionPreview> Filter(
@@ -166,6 +173,8 @@ public sealed class CollectionReviewState
                 Contains(selection.Title, search) ||
                 Contains(GameTitleIdentity.NormalizeTitle(selection.Title), search) ||
                 Contains(selection.RecommendedVariant, search) ||
+                Contains(selection.System, search) ||
+                Contains(selection.SystemKey, search) ||
                 selection.Alternatives.Any(alternative => Contains(alternative, search)));
         }
 
@@ -197,4 +206,7 @@ public sealed class CollectionReviewState
 
     private static bool Contains(string value, string search) =>
         value.Contains(search, StringComparison.OrdinalIgnoreCase);
+
+    private static string SelectionKey(GameSelectionPreview selection) =>
+        selection.SelectionKey;
 }

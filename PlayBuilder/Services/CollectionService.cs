@@ -44,6 +44,7 @@ public sealed class CollectionService(
         string destinationPath,
         string frontend,
         IEnumerable<string>? selectedSystemKeys = null,
+        IEnumerable<int>? selectedGameIds = null,
         CancellationToken cancellationToken = default)
     {
         await using var db =
@@ -80,8 +81,12 @@ public sealed class CollectionService(
         collection.Games.Clear();
 
         var systemKeys = NormalizeSystemKeys(selectedSystemKeys);
-        var favoriteIds = (await db.Games
-                .Where(game => game.IsFavorite)
+        var requestedIds = NormalizeGameIds(selectedGameIds);
+        var favoriteQuery = requestedIds.Length == 0
+            ? db.Games.Where(game => game.IsFavorite)
+            : db.Games.Where(game => requestedIds.Contains(game.Id));
+
+        var favoriteIds = (await favoriteQuery
                 .Select(game => new { game.Id, game.System })
                 .ToListAsync(cancellationToken))
             .Where(game => systemKeys.Count == 0 || systemKeys.Contains(SystemIdentity.CanonicalKey(game.System)))
@@ -138,8 +143,12 @@ public sealed class CollectionService(
         collection.RuleJson = CollectionRuleStateJson.Write(selectedSystemKeys ?? []);
         collection.UpdatedAt = DateTime.UtcNow;
 
-        var selectedKeys = selectedFilenames
+        var selectedTokens = selectedFilenames
             .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var selectedKeys = selectedTokens
             .Select(NormalizeFilenameKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -161,7 +170,8 @@ public sealed class CollectionService(
             gameIds = games
                 .Where(game =>
                     (systemKeys.Count == 0 || systemKeys.Contains(SystemIdentity.CanonicalKey(game.System))) &&
-                    (selectedKeys.Contains(NormalizeFilenameKey(game.SourcePath)) ||
+                    (MatchesSelectionToken(selectedTokens, game.System, game.Title, game.SourcePath, game.RelativePath) ||
+                     selectedKeys.Contains(NormalizeFilenameKey(game.SourcePath)) ||
                      selectedKeys.Contains(NormalizeFilenameKey(game.RelativePath)) ||
                      selectedKeys.Contains(NormalizeFilenameKey(game.Title))))
                 .Select(game => game.Id)
@@ -212,6 +222,49 @@ public sealed class CollectionService(
                 group.Key,
                 group.Count()))
             .OrderBy(system => system.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<FavoriteGameSearchResult>> SearchFavoriteGamesAsync(
+        string searchText,
+        IEnumerable<string>? selectedSystemKeys = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var systemKeys = NormalizeSystemKeys(selectedSystemKeys);
+        var search = searchText?.Trim() ?? string.Empty;
+
+        var games = await db.Games
+            .AsNoTracking()
+            .Select(game => new
+            {
+                game.Id,
+                game.Title,
+                game.SourcePath,
+                game.RelativePath,
+                game.System,
+                game.Region,
+                game.Language,
+                game.IsFavorite
+            })
+            .ToListAsync(cancellationToken);
+
+        return games
+            .Where(game => systemKeys.Count == 0 || systemKeys.Contains(SystemIdentity.CanonicalKey(game.System)))
+            .Where(game => string.IsNullOrWhiteSpace(search) || MatchesFavoriteSearch(game.Title, game.SourcePath, game.RelativePath, game.System, search))
+            .OrderBy(game => game.Title, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(game => game.System, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(game => game.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .Take(250)
+            .Select(game => new FavoriteGameSearchResult(
+                game.Id,
+                game.Title,
+                string.IsNullOrWhiteSpace(game.RelativePath) ? Path.GetFileName(game.SourcePath) : game.RelativePath,
+                game.System,
+                SystemIdentity.CanonicalKey(game.System),
+                string.IsNullOrWhiteSpace(game.Region) ? "Unknown" : game.Region,
+                string.IsNullOrWhiteSpace(game.Language) ? "Unknown" : game.Language,
+                game.IsFavorite))
             .ToList();
     }
 
@@ -468,6 +521,68 @@ public sealed class CollectionService(
         return string.IsNullOrWhiteSpace(fileName)
             ? value.Trim()
             : fileName.Trim();
+    }
+
+    private static bool MatchesSelectionToken(
+        HashSet<string> selectedTokens,
+        string system,
+        string title,
+        string sourcePath,
+        string relativePath)
+    {
+        if (selectedTokens.Count == 0)
+        {
+            return false;
+        }
+
+        var canonicalSystem = SystemIdentity.CanonicalKey(system);
+        var sourceKey = NormalizeFilenameKey(sourcePath);
+        var relativeKey = NormalizeFilenameKey(relativePath);
+        var titleKey = NormalizeFilenameKey(title);
+
+        foreach (var token in selectedTokens)
+        {
+            var parts = token.Split('|', StringSplitOptions.TrimEntries);
+            if (parts.Length != 4)
+            {
+                continue;
+            }
+
+            if (!SystemIdentity.CanonicalKey(parts[0]).Equals(canonicalSystem, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var selectedFileKey = NormalizeFilenameKey(parts[3]);
+            if (selectedFileKey.Equals(sourceKey, StringComparison.OrdinalIgnoreCase) ||
+                selectedFileKey.Equals(relativeKey, StringComparison.OrdinalIgnoreCase) ||
+                selectedFileKey.Equals(titleKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool MatchesFavoriteSearch(
+        string title,
+        string sourcePath,
+        string relativePath,
+        string system,
+        string search)
+    {
+        static string Normalize(string value) =>
+            string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : value.Trim();
+
+        return Normalize(title).Contains(search, StringComparison.OrdinalIgnoreCase) ||
+               Normalize(GameTitleIdentity.NormalizeTitle(title)).Contains(search, StringComparison.OrdinalIgnoreCase) ||
+               Normalize(sourcePath).Contains(search, StringComparison.OrdinalIgnoreCase) ||
+               Normalize(relativePath).Contains(search, StringComparison.OrdinalIgnoreCase) ||
+               Normalize(system).Contains(search, StringComparison.OrdinalIgnoreCase) ||
+               SystemIdentity.MatchesSearch(system, SystemIdentity.CanonicalKey(system), search);
     }
 
     private static async Task TouchCollectionAsync(

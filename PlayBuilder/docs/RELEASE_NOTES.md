@@ -20,6 +20,12 @@ Multi-disc sets are no longer counted as duplicate release groups simply because
 
 Collection Builder now uses real checkboxes for reviewed recommendations. Every Atlas recommendation starts selected, users can exclude individual games, selection state survives filtering, and Build Preview uses the checked set without changing Atlas decisions. Summary cards now filter confident choices, needs-review items, and extra versions for faster review.
 
+Collection Builder system selection has been repaired with alias-aware search and explicit Select Matching behavior. Searches such as `snes`, `super`, `nes`, `genesis`, `megadrive`, and `psp` can find the expected systems, and changing search text no longer silently changes selected systems.
+
+The Collection Builder unhandled-error banner caused by duplicate recommendation render keys has been corrected. Recommendation rows now use stable system-aware selection identity, so duplicate filenames across systems can render and save safely.
+
+Favorites now has a collection-building foundation inside Collections. Users can search selected systems for games, select matching results, add or remove favorite flags, and save a Favorites collection plan without treating Atlas as a personal-favorites chooser.
+
 Ask Atlas now gives page-specific help across the main app. The guidance explains what each page is for, the main controls, next steps, safety notes, and common confusion points in beginner-friendly language.
 
 The source archive remains untouched. This release only previews recommendations.
@@ -40,5 +46,9 @@ The source archive remains untouched. This release only previews recommendations
 - Confirm multi-disc games are not counted as duplicate groups when the only multiple files are required discs.
 - Confirm the heading identifies Atlas and expanded recommendations show decision reasons.
 - Confirm Collection Builder selections can be checked, unchecked, reset, and sent to Build Preview.
+- Confirm Collection Builder system search supports `snes`, `super`, `nes`, `genesis`, `megadrive`, and `psp`.
+- Confirm Select All, Select None, Select Matching, and individual system toggles update counts without a Blazor unhandled-error banner.
+- Confirm recommendation filters and selection buttons update the visible recommendation list and selected/excluded counts.
+- Confirm Favorites search can find games such as Mario from selected systems, and selected Favorites can be added, removed, saved, and reviewed.
 - Confirm Ask Atlas content changes as the user moves between the main navigation pages.
 - Confirm singleton title groups appear as automatic recommendations and multi-disc titles remain separate candidates.
