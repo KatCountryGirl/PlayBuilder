@@ -62,7 +62,8 @@ public sealed partial class ArchiveScanner : IArchiveScanner
     public async Task<ArchiveScanResult> ScanAsync(
         string archivePath,
         IProgress<ArchiveScanProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CatalogScanMode mode = CatalogScanMode.AddOrUpdate)
     {
         var output = await Task.Run(
             () => ScanCore(archivePath, progress, cancellationToken),
@@ -76,8 +77,8 @@ public sealed partial class ArchiveScanner : IArchiveScanner
             output.Result.Duration,
             "Saving catalog to Library"));
 
-        await SaveCatalogAsync(output.Games, cancellationToken);
-        return output.Result;
+        await SaveCatalogAsync(output.Games, mode, cancellationToken);
+        return await BuildCatalogResultAsync(output.Result, cancellationToken);
     }
 
     private static ScanOutput ScanCore(
@@ -179,14 +180,13 @@ public sealed partial class ArchiveScanner : IArchiveScanner
                     normalizedTitle = displayTitle.Trim().ToLowerInvariant();
                 }
 
-                duplicateCandidates.Add((systemName, normalizedTitle, displayTitle));
-
                 var oneGameOneRomTitle = GameTitleIdentity.NormalizeOneGameOneRomTitle(displayTitle);
                 if (string.IsNullOrWhiteSpace(oneGameOneRomTitle))
                 {
                     oneGameOneRomTitle = normalizedTitle;
                 }
 
+                duplicateCandidates.Add((systemName, oneGameOneRomTitle, displayTitle));
                 oneGameOneRomCandidates.Add((systemName, oneGameOneRomTitle, displayTitle));
 
                 var discNumber = 0;
@@ -279,7 +279,10 @@ public sealed partial class ArchiveScanner : IArchiveScanner
         return new ScanOutput(result, catalog);
     }
 
-    private async Task SaveCatalogAsync(IReadOnlyCollection<Game> games, CancellationToken cancellationToken)
+    private async Task SaveCatalogAsync(
+        IReadOnlyCollection<Game> games,
+        CatalogScanMode mode,
+        CancellationToken cancellationToken)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
@@ -290,23 +293,148 @@ public sealed partial class ArchiveScanner : IArchiveScanner
             .ToListAsync(cancellationToken);
         var favoritePaths = favoritePathList.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        var incomingPaths = games
+            .Select(game => CanonicalPath(game.SourcePath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var existingGames = await db.Games
+            .Where(game => incomingPaths.Contains(game.SourcePath))
+            .ToDictionaryAsync(game => game.SourcePath, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
         foreach (var game in games)
         {
             game.IsFavorite = favoritePaths.Contains(game.SourcePath);
         }
 
-        // PlayBuilder currently manages one configured archive. A completed scan replaces
-        // the catalog atomically from the user's point of view while leaving source files untouched.
-        await db.Games.ExecuteDeleteAsync(cancellationToken);
+        if (mode == CatalogScanMode.ReplaceEntireCatalog)
+        {
+            await db.Games.ExecuteDeleteAsync(cancellationToken);
+            existingGames.Clear();
+        }
+
+        foreach (var game in games)
+        {
+            game.SourcePath = CanonicalPath(game.SourcePath);
+            if (existingGames.TryGetValue(game.SourcePath, out var existing))
+            {
+                existing.Title = game.Title;
+                existing.SortTitle = game.SortTitle;
+                existing.System = game.System;
+                existing.Region = game.Region;
+                existing.Language = game.Language;
+                existing.Revision = game.Revision;
+                existing.Version = game.Version;
+                existing.DiscNumber = game.DiscNumber;
+                existing.Extension = game.Extension;
+                existing.FileSize = game.FileSize;
+                existing.RelativePath = game.RelativePath;
+                existing.Hash = game.Hash;
+                existing.Modified = DateTime.UtcNow;
+            }
+        }
 
         const int batchSize = 2_000;
-        foreach (var batch in games.Chunk(batchSize))
+        foreach (var batch in games
+            .Where(game => !existingGames.ContainsKey(game.SourcePath))
+            .Chunk(batchSize))
         {
             await db.Games.AddRangeAsync(batch, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             db.ChangeTracker.Clear();
         }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
+
+    private async Task<ArchiveScanResult> BuildCatalogResultAsync(
+        ArchiveScanResult scanResult,
+        CancellationToken cancellationToken)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var games = await db.Games.AsNoTracking().ToListAsync(cancellationToken);
+        if (games.Count == 0)
+        {
+            return scanResult;
+        }
+
+        var result = new ArchiveScanResult
+        {
+            ArchivePath = scanResult.ArchivePath,
+            StartedAt = scanResult.StartedAt,
+            CompletedAt = scanResult.CompletedAt,
+            RecognizedFileCount = games.Count,
+            IgnoredFileCount = scanResult.IgnoredFileCount,
+            IncludesFileSizes = false,
+            Warnings = scanResult.Warnings
+        };
+
+        result.Systems = games
+            .GroupBy(game => game.System, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new SystemScanSummary { Name = group.Key, FileCount = group.Count() })
+            .OrderByDescending(item => item.FileCount)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        result.FileTypes = games
+            .GroupBy(game => game.Extension, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new ExtensionScanSummary { Extension = group.Key, FileCount = group.Count() })
+            .OrderByDescending(item => item.FileCount)
+            .ThenBy(item => item.Extension, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        result.Regions = games
+            .GroupBy(game => string.IsNullOrWhiteSpace(game.Region) ? "Unknown" : game.Region, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new RegionScanSummary { Region = group.Key, FileCount = group.Count() })
+            .OrderBy(item => item.Region, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        result.Languages = games
+            .SelectMany(game => game.Language.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .GroupBy(language => language, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new MetadataScanSummary { Name = group.Key, FileCount = group.Count() })
+            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var releases = games.Select(game =>
+        {
+            var displayTitle = Path.GetFileNameWithoutExtension(game.SourcePath);
+            return (game.System, game.SortTitle, OneGameOneRomTitle: GameTitleIdentity.NormalizeOneGameOneRomTitle(displayTitle), DisplayTitle: displayTitle);
+        }).ToList();
+
+        result.OneGameOneRomGroups = DuplicateGrouping.BuildOneGameOneRomGroups(
+            releases.Select(release => (release.System, release.OneGameOneRomTitle, release.DisplayTitle)));
+        result.DuplicateGroups = DuplicateGrouping.BuildDuplicateGroups(
+            releases.Select(release => (release.System, release.OneGameOneRomTitle, release.DisplayTitle)),
+            take: 250);
+        foreach (var group in result.DuplicateGroups)
+        {
+            group.Variants = group.Variants.Take(12).ToList();
+        }
+
+        result.MultiDiscGroups = BuildMultiDiscGroups(games);
+        return result;
+    }
+
+    private static List<MultiDiscGroupSummary> BuildMultiDiscGroups(IEnumerable<Game> games) =>
+        games
+            .Where(game => game.DiscNumber > 0)
+            .GroupBy(game => DuplicateGrouping.CreateKey(game.System, game.SortTitle), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Select(game => game.DiscNumber).Distinct().Count() > 1)
+            .Select(group => new MultiDiscGroupSummary
+            {
+                Title = GameTitleIdentity.ToDisplayTitle(group.First().SortTitle),
+                DiscCount = group.Select(game => game.DiscNumber).Distinct().Count(),
+                Files = group
+                    .OrderBy(game => game.DiscNumber)
+                    .ThenBy(game => game.SourcePath, StringComparer.OrdinalIgnoreCase)
+                    .Select(game => Path.GetFileNameWithoutExtension(game.SourcePath))
+                    .Take(20)
+                    .ToList()
+            })
+            .OrderByDescending(group => group.DiscCount)
+            .ThenBy(group => group.Title, StringComparer.OrdinalIgnoreCase)
+            .Take(250)
+            .ToList();
+
+    private static string CanonicalPath(string path) =>
+        string.IsNullOrWhiteSpace(path) ? string.Empty : Path.GetFullPath(path);
 
     private static string InferLanguageFromRegion(string region) => region switch
     {

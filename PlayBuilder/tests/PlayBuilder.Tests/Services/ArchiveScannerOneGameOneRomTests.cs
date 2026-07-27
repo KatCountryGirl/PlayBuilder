@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PlayBuilder.Data;
+using PlayBuilder.Models;
 using PlayBuilder.Services;
 
 namespace PlayBuilder.Tests.Services;
@@ -150,6 +151,88 @@ public sealed class ArchiveScannerOneGameOneRomTests
 
             Assert.Equal(2, result.OneGameOneRomGroups.Count);
             Assert.Empty(result.DuplicateGroups);
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScanAsync_AddOrUpdate_PreservesOtherSystemsAndUpdatesExisting()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            var snes = Path.Combine(root, "SNES");
+            var genesis = Path.Combine(root, "Sega Genesis");
+            Touch(root, "SNES", "Pilotwings (USA).sfc");
+            Touch(root, "Sega Genesis", "Sonic the Hedgehog (USA).gen");
+
+            var scanner = new ArchiveScanner(factory);
+            await scanner.ScanAsync(snes);
+            await scanner.ScanAsync(genesis);
+            await scanner.ScanAsync(snes);
+
+            await using var db = factory.CreateDbContext();
+            var games = await db.Games.AsNoTracking().ToListAsync();
+
+            Assert.Equal(2, games.Count);
+            Assert.Contains(games, game => game.System == "SNES");
+            Assert.Contains(games, game => game.System == "Sega Genesis");
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScanAsync_ReplaceEntireCatalog_RemovesPreviousCatalogRecords()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            var snes = Path.Combine(root, "SNES");
+            var genesis = Path.Combine(root, "Sega Genesis");
+            Touch(root, "SNES", "Pilotwings (USA).sfc");
+            Touch(root, "Sega Genesis", "Sonic the Hedgehog (USA).gen");
+
+            var scanner = new ArchiveScanner(factory);
+            await scanner.ScanAsync(snes);
+            await scanner.ScanAsync(genesis, mode: CatalogScanMode.ReplaceEntireCatalog);
+
+            await using var db = factory.CreateDbContext();
+            var game = Assert.Single(await db.Games.AsNoTracking().ToListAsync());
+            Assert.Equal("Sega Genesis", game.System);
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScanAsync_MultiDiscSet_DoesNotCountDistinctDiscsAsDuplicateGroup()
+    {
+        var root = CreateTempDirectory();
+        var factory = await CreateFactoryAsync(root);
+        try
+        {
+            Touch(root, "PSP", "Example RPG (Disc 1) (USA).iso");
+            Touch(root, "PSP", "Example RPG (Disc 2) (USA).iso");
+
+            var scanner = new ArchiveScanner(factory);
+            var result = await scanner.ScanAsync(root);
+
+            Assert.Empty(result.DuplicateGroups);
+            var multiDisc = Assert.Single(result.MultiDiscGroups);
+            Assert.Equal(2, multiDisc.DiscCount);
         }
         finally
         {

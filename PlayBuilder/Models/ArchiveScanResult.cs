@@ -92,3 +92,18 @@ public sealed record ArchiveScanProgress(
     string CurrentFile,
     TimeSpan Elapsed,
     string Phase = "Reading filenames");
+
+public enum CatalogScanMode
+{
+    AddOrUpdate,
+    ReplaceEntireCatalog
+}
+
+public sealed record CatalogSystemSummary(
+    string Name,
+    string SystemKey,
+    int ReleaseCount);
+
+public sealed record RemoveSystemsResult(
+    int SystemsRemoved,
+    int ReleasesRemoved);

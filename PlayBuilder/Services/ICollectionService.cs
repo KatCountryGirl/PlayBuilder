@@ -1,4 +1,5 @@
 using PlayBuilder.Data.Entities;
+using PlayBuilder.Models;
 
 namespace PlayBuilder.Services;
 
@@ -15,6 +16,7 @@ public interface ICollectionService
         string name,
         string destinationPath,
         string frontend,
+        IEnumerable<string>? selectedSystemKeys = null,
         CancellationToken cancellationToken = default);
 
     Task<Collection> SaveOneGameOneRomCollectionAsync(
@@ -22,6 +24,14 @@ public interface ICollectionService
         string destinationPath,
         string frontend,
         IEnumerable<string> selectedFilenames,
+        IEnumerable<string>? selectedSystemKeys = null,
+        CancellationToken cancellationToken = default);
+
+    Task<int> DeleteCollectionAsync(
+        int collectionId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CatalogSystemSummary>> GetCatalogSystemsAsync(
         CancellationToken cancellationToken = default);
 
     Task<bool> ToggleFavoriteAsync(

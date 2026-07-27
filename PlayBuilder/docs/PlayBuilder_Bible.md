@@ -31,3 +31,4 @@ Every coding milestone must:
 - Prefer tokenizer and parser pipelines over giant regex-only parsers.
 - Preserve working legacy behavior until its replacement is tested and integrated.
 - Treat duplicate groups as same-system alternate releases, not matching titles across different systems.
+- Standard scans must be non-destructive catalog additions or updates unless the user explicitly confirms catalog replacement.

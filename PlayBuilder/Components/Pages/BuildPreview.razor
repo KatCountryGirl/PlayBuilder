@@ -89,6 +89,7 @@
                                 @DisplayCollectionType(_selected.Type).ToUpperInvariant() COLLECTION
                             </p>
                             <h2>@_selected.Name</h2>
+                            <p>@SelectedSystemsLabel</p>
                         </div>
 
                         <span class="plan-status">Preview only</span>
@@ -112,21 +113,43 @@
                     <div class="plan-summary">
                         <article>
                             <span>Games included</span>
-                            <strong>@IncludedCount.ToString("N0")</strong>
+                            <strong>@FilteredIncludedCount.ToString("N0")</strong>
                             <small>Saved collection members</small>
                         </article>
 
                         <article>
-                            <span>Games selected</span>
-                            <strong>@_selectedGameIds.Count.ToString("N0")</strong>
-                            <small>Ready for exclusion</small>
+                            <span>Total files</span>
+                            <strong>@FilteredIncludedCount.ToString("N0")</strong>
+                            <small>Component files in view</small>
                         </article>
 
                         <article>
-                            <span>File changes</span>
-                            <strong>0</strong>
-                            <small>Nothing executed yet</small>
+                            <span>Needs Review</span>
+                            <strong>@NeedsReviewCount.ToString("N0")</strong>
+                            <small>Unknown region or language</small>
                         </article>
+
+                        <article>
+                            <span>Excluded</span>
+                            <strong>@_selectedGameIds.Count.ToString("N0")</strong>
+                            <small>Selected for removal from plan</small>
+                        </article>
+                    </div>
+
+                    <div class="filter-row">
+                        <select value="@_selectedSystemFilter" @onchange="ChangeSystemFilterAsync" aria-label="Filter Build Preview by system">
+                            <option value="">All systems</option>
+                            @foreach (var system in AvailableSystems)
+                            {
+                                <option value="@system">@system</option>
+                            }
+                        </select>
+                        <button type="button" class="secondary" disabled="@_deleteCollectionConfirmed" @onclick="() => _deleteCollectionConfirmed = true">Delete saved collection</button>
+                        @if (_deleteCollectionConfirmed)
+                        {
+                            <button type="button" class="exclude-action" @onclick="DeleteSelectedCollectionAsync">Confirm delete collection</button>
+                            <button type="button" class="secondary" @onclick="() => _deleteCollectionConfirmed = false">Cancel</button>
+                        }
                     </div>
 
                     <div class="plan-details">
@@ -141,7 +164,7 @@
                         </div>
                     </div>
 
-                    @if (IncludedCount == 0)
+                    @if (FilteredIncludedCount == 0)
                     {
                         <div class="empty-plan">
                             <span aria-hidden="true">🧩</span>
@@ -172,14 +195,14 @@
                             </span>
 
                             <div class="preview-action-buttons">
-                                @if (IncludedCount > PreviewLimit &&
-                                     _selectedGameIds.Count < IncludedCount)
+                                @if (FilteredIncludedCount > PreviewLimit &&
+                                     _selectedGameIds.Count < FilteredIncludedCount)
                                 {
                                     <button type="button"
                                             class="secondary"
                                             disabled="@_isSaving"
                                             @onclick="SelectAllIncluded">
-                                        Select all @IncludedCount.ToString("N0")
+                                        Select all @FilteredIncludedCount.ToString("N0")
                                     </button>
                                 }
 
@@ -241,7 +264,7 @@
                                     <span class="game-info">
                                         <strong>@game.Title</strong>
                                         <small title="@game.RelativePath">
-                                            @DisplayPath(game.RelativePath)
+                                            @DisplayPath(game.RelativePath)@GetDiscSuffix(game)
                                         </small>
                                     </span>
 
@@ -262,7 +285,7 @@
                         {
                             <p class="more-note">
                                 Showing the first @PreviewLimit.ToString("N0") of
-                                @IncludedCount.ToString("N0") planned games.
+                                @FilteredIncludedCount.ToString("N0") planned games.
                                 “Select all included” still selects the entire collection.
                             </p>
                         }
@@ -298,6 +321,8 @@
     private bool _isLoading = true;
     private bool _isSaving;
     private bool _statusIsError;
+    private bool _deleteCollectionConfirmed;
+    private string _selectedSystemFilter = string.Empty;
 
     private IReadOnlyList<Collection> _collections = [];
     private Collection? _selected;
@@ -307,16 +332,37 @@
     private string? _statusMessage;
 
     private int IncludedCount => _selected?.Games.Count ?? 0;
+    private int FilteredIncludedCount => FilteredGames.Count;
+    private int NeedsReviewCount => FilteredGames.Count(item =>
+        string.IsNullOrWhiteSpace(item.Game.Region) ||
+        item.Game.Region.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+        string.IsNullOrWhiteSpace(item.Game.Language));
 
-    private List<CollectionGame> DisplayedGames =>
+    private IReadOnlyList<string> AvailableSystems =>
         _selected?.Games
             .Where(item => item.Game is not null)
+            .Select(item => item.Game.System)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList()
+        ?? [];
+
+    private List<CollectionGame> FilteredGames =>
+        _selected?.Games
+            .Where(item => item.Game is not null)
+            .Where(item => string.IsNullOrWhiteSpace(_selectedSystemFilter) ||
+                item.Game.System.Equals(_selectedSystemFilter, StringComparison.OrdinalIgnoreCase))
+            .ToList()
+        ?? [];
+
+    private List<CollectionGame> DisplayedGames =>
+        FilteredGames
             .OrderBy(item => item.Game.Title, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.Game.System, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.Game.Region, StringComparer.OrdinalIgnoreCase)
             .Take(PreviewLimit)
-            .ToList()
-        ?? [];
+            .ToList();
 
     private bool AreAllIncludedSelected =>
         IncludedCount > 0 &&
@@ -344,7 +390,9 @@
             else
             {
                 _selected = null;
-                _selectedGameIds.Clear();
+            _selectedGameIds.Clear();
+            _selectedSystemFilter = string.Empty;
+            _deleteCollectionConfirmed = false;
             }
         }
         catch (Exception ex)
@@ -424,10 +472,10 @@
 
         _selectedGameIds.Clear();
 
-        foreach (var item in _selected.Games)
-        {
-            _selectedGameIds.Add(item.GameId);
-        }
+            foreach (var item in FilteredGames)
+            {
+                _selectedGameIds.Add(item.GameId);
+            }
     }
 
     private void SelectDisplayed()
@@ -440,6 +488,30 @@
 
     private void ClearSelection()
     {
+        _selectedGameIds.Clear();
+    }
+
+    private Task ChangeSystemFilterAsync(ChangeEventArgs args)
+    {
+        _selectedSystemFilter = args.Value?.ToString() ?? string.Empty;
+        _selectedGameIds.Clear();
+        return Task.CompletedTask;
+    }
+
+    private async Task DeleteSelectedCollectionAsync()
+    {
+        if (_selected is null || !_deleteCollectionConfirmed)
+        {
+            return;
+        }
+
+        var deletedId = _selected.Id;
+        await Collections.DeleteCollectionAsync(deletedId);
+        _statusMessage = $"Deleted saved collection {_selected.Name}. Game files and favorite marks were not changed.";
+        _statusIsError = false;
+        _deleteCollectionConfirmed = false;
+        await LoadCollectionsAsync();
+        _selected = null;
         _selectedGameIds.Clear();
     }
 
@@ -540,4 +612,23 @@
             ? "No relative path recorded"
             : value;
     }
+
+    private string SelectedSystemsLabel
+    {
+        get
+        {
+            if (_selected is null)
+            {
+                return string.Empty;
+            }
+
+            var state = CollectionRuleStateJson.Read(_selected.RuleJson);
+            return state.SelectedSystemKeys.Count == 0
+                ? "All systems"
+                : $"{state.SelectedSystemKeys.Count:N0} selected systems";
+        }
+    }
+
+    private static string GetDiscSuffix(Game game) =>
+        game.DiscNumber > 0 ? $" · Disc {game.DiscNumber}" : string.Empty;
 }

@@ -16,10 +16,11 @@ public sealed class GameScanWorkflowService : IGameScanWorkflowService
     public async Task<ArchiveScanResult> ScanAndSaveAsync(
         PlayBuilderSettings settings,
         IProgress<ArchiveScanProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CatalogScanMode mode = CatalogScanMode.AddOrUpdate)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var result = await _archiveScanner.ScanAsync(settings.ArchivePath, progress, cancellationToken);
+        var result = await _archiveScanner.ScanAsync(settings.ArchivePath, progress, cancellationToken, mode);
         await _scanReportService.SaveLatestAsync(result, cancellationToken);
         return result;
     }

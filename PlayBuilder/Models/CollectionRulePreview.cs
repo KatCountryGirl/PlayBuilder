@@ -64,6 +64,8 @@ public sealed class CollectionRuleDiagnostics
 public sealed class GameSelectionPreview
 {
     public string Title { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string SystemKey { get; set; } = string.Empty;
     public string RecommendedVariant { get; set; } = string.Empty;
     public string RecommendedRegion { get; set; } = "Unknown";
     public string RecommendedLanguage { get; set; } = "Unknown";

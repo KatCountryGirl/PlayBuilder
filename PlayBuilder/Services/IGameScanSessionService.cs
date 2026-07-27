@@ -10,7 +10,8 @@ public interface IGameScanSessionService
 
     Task<bool> StartScanAsync(
         PlayBuilderSettings settings,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        CatalogScanMode mode = CatalogScanMode.AddOrUpdate);
 
     void CancelScan();
 }

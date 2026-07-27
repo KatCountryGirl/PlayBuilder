@@ -66,11 +66,27 @@
                     }
                     else
                     {
-                        <button type="button" @onclick="StartScanAsync">
-                            @(_snapshot.LastCompletedScan is null ? "Scan Games" : "Rescan")
+                        <button type="button" @onclick="StartAddOrUpdateScanAsync">
+                            Add or Update Games
                         </button>
                     }
                 </div>
+
+                @if (!_snapshot.IsRunning)
+                {
+                    <details class="advanced-options">
+                        <summary>
+                            <span>Advanced Options</span>
+                            <small>Replace PlayBuilder catalog data</small>
+                        </summary>
+                        <p class="field-help">Replace Entire Catalog removes the current PlayBuilder catalog records before scanning this folder. It does not delete or change your original game files.</p>
+                        <label class="compact-check">
+                            <input type="checkbox" checked="@_replaceCatalogConfirmed" @onchange="args => _replaceCatalogConfirmed = args.Value is bool value && value" />
+                            I understand this replaces PlayBuilder catalog data only.
+                        </label>
+                        <button type="button" class="secondary" disabled="@(!_replaceCatalogConfirmed)" @onclick="StartReplaceCatalogScanAsync">Replace Entire Catalog</button>
+                    </details>
+                }
 
                 @if (!string.IsNullOrWhiteSpace(_snapshot.Message))
                 {
@@ -131,6 +147,7 @@
     private string _frontend = Frontends[0];
     private DateTimeOffset? _setupCompletedAt;
     private GameScanSessionSnapshot _snapshot = GameScanSessionSnapshot.Idle();
+    private bool _replaceCatalogConfirmed;
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,7 +164,11 @@
         _isLoading = false;
     }
 
-    private async Task StartScanAsync()
+    private Task StartAddOrUpdateScanAsync() => StartScanAsync(CatalogScanMode.AddOrUpdate);
+
+    private Task StartReplaceCatalogScanAsync() => StartScanAsync(CatalogScanMode.ReplaceEntireCatalog);
+
+    private async Task StartScanAsync(CatalogScanMode mode)
     {
         if (string.IsNullOrWhiteSpace(_archivePath) ||
             string.IsNullOrWhiteSpace(_libraryPath) ||
@@ -172,7 +193,7 @@
 
         await SettingsService.SaveAsync(settings);
 
-        if (!await ScanSession.StartScanAsync(settings))
+        if (!await ScanSession.StartScanAsync(settings, mode: mode))
         {
             _snapshot = ScanSession.Snapshot with
             {
@@ -181,6 +202,7 @@
             };
         }
 
+        _replaceCatalogConfirmed = false;
         _setupCompletedAt ??= settings.SetupCompletedAt;
     }
 
