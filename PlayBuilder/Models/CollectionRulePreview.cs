@@ -74,7 +74,20 @@ public sealed class GameSelectionPreview
     public List<string> DecisionReasons { get; set; } = [];
     public List<string> Alternatives { get; set; } = [];
     public AtlasInspectionPreview? AtlasInspection { get; set; }
+
+    public string SelectionKey =>
+        string.Join('|', SystemKey, System, Title, RecommendedVariant);
 }
+
+public sealed record FavoriteGameSearchResult(
+    int GameId,
+    string Title,
+    string OriginalFilename,
+    string System,
+    string SystemKey,
+    string Region,
+    string Language,
+    bool IsFavorite);
 
 public sealed class AtlasInspectionPreview
 {

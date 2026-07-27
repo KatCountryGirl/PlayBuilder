@@ -28,6 +28,16 @@ System removal is handled as catalog maintenance through `ICatalogService`. It d
 
 Saved collections store reusable system scope in `Collection.RuleJson` so 1G1R, Favorites, and future collection types can share the same selected-system model without a database migration.
 
+Collection Builder uses `SystemSelectionState` and `SystemIdentity` to keep system search, alias matching, selected counts, and Select Matching behavior outside the Razor markup. System search changes visibility only; recommendation previews are recalculated when system selection changes.
+
+Recommendation preview rows expose a stable `SelectionKey` composed from system identity, title, and selected file. This prevents duplicate filenames from producing duplicate Blazor render keys and lets Review Build preserve the exact checked recommendation plan.
+
+Favorites remains separate from Library management. Library owns catalog browsing, release inspection, duplicate review, catalog entry removal, and favorite flags. Collections > Favorites uses catalog search plus explicit selected game IDs to save a playable Favorites build plan.
+
+Future quarantine work must preserve the source path below a configured quarantine root, detect collisions, avoid overwrites, and store restoration records. A source such as `/games/Sony/PSP/Game Name.iso` should quarantine under `/quarantine/games/Sony/PSP/Game Name.iso`, not into a flat folder.
+
+System card media categories are resolved as lightweight metadata only. Later artwork must use locally owned or permissively licensed icons and must keep the checkbox and system name usable when no icon exists.
+
 ## Migration State
 
 `ICollectionRuleService` is implemented by `AtlasCollectionRuleService`. The former `CollectionRuleService` remains available by concrete type so Milestone 3 can generate controlled comparison reports before deletion or archival.
