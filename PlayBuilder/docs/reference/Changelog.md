@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- Collection Builder now presents four clear workflows: 1G1R All Games, 1G1R English Only, Favorites, and Custom.
+- 1G1R workflows now include simple release preference presets for English First, USA First, Europe First, Japanese First, and Custom.
+- Collection Builder recommendations now include inline collector-friendly explanations instead of the fixed Atlas Inspector dialog.
+- Saved collection rule state now records workflow, release preference, excluded count, and needs-review count for Build Preview summaries.
+- Build Preview now summarizes the active working plan with collection workflow, selected systems, selected games, excluded games, needs-review count, and output information.
+- Atlas recommendation explanations now translate deterministic decision data into collector-facing language for the UI.
 - Collection Builder now has alias-aware system search, including `snes`, `nes`, `genesis`, `megadrive`, and `psp`.
 - Collection Builder system selection now includes Select Matching for intentionally choosing only the visible system search results.
 - Favorites now includes a collection-building search and selection area for finding catalog games, marking favorites, removing favorite flags, and saving a Favorites build plan.
@@ -28,6 +34,10 @@
 - Comprehensive dedicated unit test coverage for every Atlas deterministic comparison rule.
 
 ### Changed
+- Collection Builder now hides Atlas profiles, rule switches, detailed language and region ordering, and diagnostics unless the Custom workflow or Custom release preference is selected.
+- Needs Review now represents genuine uncertainty or incomplete metadata rather than single-game recommendations.
+- Collection Builder summary filters now use clear Recommended, Needs Review, and Excluded categories without duplicate checkbox filters.
+- Review Build now persists the current checked plan with workflow metadata before navigating to Build Preview.
 - Recommendation row keys and selection state now use stable system-aware identifiers so duplicate filenames across systems do not break rendering or saved build plans.
 - Library and Favorites wording now distinguishes catalog management from building a playable Favorites collection.
 - Multi-disc sets no longer count distinct required discs as duplicate releases.

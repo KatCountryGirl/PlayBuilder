@@ -67,7 +67,8 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
             }
 
             var winner = candidates[0];
-            var fallback = IsFallback(winner, options);
+            var needsReviewReason = BuildNeedsReviewReason(candidates, winner);
+            var fallback = !string.IsNullOrWhiteSpace(needsReviewReason);
 
             preview.Selections.Add(new GameSelectionPreview
             {
@@ -78,6 +79,7 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
                 RecommendedRegion = winner.Region,
                 RecommendedLanguage = winner.PrimaryLanguage,
                 IsFallback = fallback,
+                NeedsReviewReason = needsReviewReason,
                 Reason = BuildReason(winner, options, fallback),
                 Alternatives = candidates.Skip(1).Select(candidate => candidate.Name).ToList()
             });
@@ -141,11 +143,26 @@ public sealed partial class CollectionRuleService : ICollectionRuleService
         return new Candidate(name, region, languages, primaryLanguage, isSpecial, revision, score);
     }
 
-    private static bool IsFallback(Candidate winner, CollectionRuleOptions options)
+    private static string BuildNeedsReviewReason(IReadOnlyList<Candidate> candidates, Candidate winner)
     {
+        if (candidates.Count <= 1)
+        {
+            return string.Empty;
+        }
+
         var regionKnown = !winner.Region.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
         var languageKnown = !winner.PrimaryLanguage.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
-        return !regionKnown || !languageKnown;
+        if (!languageKnown)
+        {
+            return "I found more than one possible release, but the language information is incomplete.";
+        }
+
+        if (!regionKnown)
+        {
+            return "I found more than one possible release, but the region information is incomplete.";
+        }
+
+        return string.Empty;
     }
 
     private static string BuildReason(Candidate winner, CollectionRuleOptions options, bool fallback)

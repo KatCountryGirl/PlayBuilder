@@ -54,14 +54,12 @@ public sealed class CollectionReviewStateTests
         var state = CreateState();
         state.SetSelected(Recommendations[1], false);
 
-        Assert.Equal(2, state.Filter(new CollectionReviewFilters(), CollectionReviewSummaryFilter.Confident).Count);
+        Assert.Equal(2, state.Filter(new CollectionReviewFilters(), CollectionReviewSummaryFilter.Recommended).Count);
         Assert.Single(state.Filter(new CollectionReviewFilters(), CollectionReviewSummaryFilter.NeedsReview));
+        Assert.Single(state.Filter(new CollectionReviewFilters(), CollectionReviewSummaryFilter.Excluded));
         Assert.Single(state.Filter(new CollectionReviewFilters { SearchText = "Alt" }, CollectionReviewSummaryFilter.All));
         Assert.Single(state.Filter(new CollectionReviewFilters { Language = "Japanese" }, CollectionReviewSummaryFilter.All));
         Assert.Equal(2, state.Filter(new CollectionReviewFilters { Region = "USA" }, CollectionReviewSummaryFilter.All).Count);
-        Assert.Equal(2, state.Filter(new CollectionReviewFilters { SelectedOnly = true }, CollectionReviewSummaryFilter.All).Count);
-        Assert.Single(state.Filter(new CollectionReviewFilters { ExcludedOnly = true }, CollectionReviewSummaryFilter.All));
-        Assert.Single(state.Filter(new CollectionReviewFilters { NeedsReviewOnly = true }, CollectionReviewSummaryFilter.All));
     }
 
     [Fact]
@@ -85,8 +83,7 @@ public sealed class CollectionReviewStateTests
             {
                 SearchText = "snes",
                 Language = "English",
-                Region = "USA",
-                SelectedOnly = true
+                Region = "USA"
             },
             CollectionReviewSummaryFilter.All);
 
@@ -94,7 +91,7 @@ public sealed class CollectionReviewStateTests
     }
 
     [Fact]
-    public void GetAlternates_ReturnsExtraVersionDisplayData()
+    public void GetAlternates_ReturnsInlineAlternativeDisplayData()
     {
         var state = CreateState();
 

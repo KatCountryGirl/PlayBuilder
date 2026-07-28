@@ -18,6 +18,10 @@ public interface ICollectionService
         string frontend,
         IEnumerable<string>? selectedSystemKeys = null,
         IEnumerable<int>? selectedGameIds = null,
+        string workflow = "",
+        string releasePreference = "",
+        int excludedGameCount = 0,
+        int needsReviewCount = 0,
         CancellationToken cancellationToken = default);
 
     Task<Collection> SaveOneGameOneRomCollectionAsync(
@@ -26,6 +30,10 @@ public interface ICollectionService
         string frontend,
         IEnumerable<string> selectedFilenames,
         IEnumerable<string>? selectedSystemKeys = null,
+        string workflow = "",
+        string releasePreference = "",
+        int excludedGameCount = 0,
+        int needsReviewCount = 0,
         CancellationToken cancellationToken = default);
 
     Task<int> DeleteCollectionAsync(

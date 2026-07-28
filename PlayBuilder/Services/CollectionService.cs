@@ -45,6 +45,10 @@ public sealed class CollectionService(
         string frontend,
         IEnumerable<string>? selectedSystemKeys = null,
         IEnumerable<int>? selectedGameIds = null,
+        string workflow = "",
+        string releasePreference = "",
+        int excludedGameCount = 0,
+        int needsReviewCount = 0,
         CancellationToken cancellationToken = default)
     {
         await using var db =
@@ -75,7 +79,12 @@ public sealed class CollectionService(
         collection.Type = "favorites";
         collection.DestinationPath = destinationPath?.Trim() ?? string.Empty;
         collection.Frontend = frontend?.Trim() ?? string.Empty;
-        collection.RuleJson = CollectionRuleStateJson.Write(selectedSystemKeys ?? []);
+        collection.RuleJson = CollectionRuleStateJson.Write(
+            selectedSystemKeys ?? [],
+            workflow,
+            releasePreference,
+            excludedGameCount,
+            needsReviewCount);
         collection.UpdatedAt = DateTime.UtcNow;
 
         collection.Games.Clear();
@@ -110,6 +119,10 @@ public sealed class CollectionService(
         string frontend,
         IEnumerable<string> selectedFilenames,
         IEnumerable<string>? selectedSystemKeys = null,
+        string workflow = "",
+        string releasePreference = "",
+        int excludedGameCount = 0,
+        int needsReviewCount = 0,
         CancellationToken cancellationToken = default)
     {
         await using var db =
@@ -140,7 +153,12 @@ public sealed class CollectionService(
         collection.Type = "1g1r";
         collection.DestinationPath = destinationPath?.Trim() ?? string.Empty;
         collection.Frontend = frontend?.Trim() ?? string.Empty;
-        collection.RuleJson = CollectionRuleStateJson.Write(selectedSystemKeys ?? []);
+        collection.RuleJson = CollectionRuleStateJson.Write(
+            selectedSystemKeys ?? [],
+            workflow,
+            releasePreference,
+            excludedGameCount,
+            needsReviewCount);
         collection.UpdatedAt = DateTime.UtcNow;
 
         var selectedTokens = selectedFilenames

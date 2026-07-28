@@ -71,6 +71,7 @@ public sealed class GameSelectionPreview
     public string RecommendedLanguage { get; set; } = "Unknown";
     public string Reason { get; set; } = string.Empty;
     public bool IsFallback { get; set; }
+    public string NeedsReviewReason { get; set; } = string.Empty;
     public List<string> DecisionReasons { get; set; } = [];
     public List<string> Alternatives { get; set; } = [];
     public AtlasInspectionPreview? AtlasInspection { get; set; }
