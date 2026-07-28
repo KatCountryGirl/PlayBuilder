@@ -42,8 +42,6 @@ The current priority is transforming the functional application into a coherent,
 
 ## 2.12 — The Great UX Refactor
 
-Status: Implemented for Product Owner review.
-
 Goals:
 
 - Simplify Collection Builder.
