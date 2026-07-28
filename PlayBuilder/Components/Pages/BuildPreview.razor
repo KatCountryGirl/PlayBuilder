@@ -1,5 +1,6 @@
 @page "/build"
 @using PlayBuilder.Data.Entities
+@using PlayBuilder.Models
 @inject ICollectionService Collections
 @inject NavigationManager Navigation
 
@@ -89,7 +90,7 @@
                                 @DisplayCollectionType(_selected.Type).ToUpperInvariant() COLLECTION
                             </p>
                             <h2>@_selected.Name</h2>
-                            <p>@SelectedSystemsLabel</p>
+                            <p>@WorkflowSummary</p>
                         </div>
 
                         <span class="plan-status">Preview only</span>
@@ -112,27 +113,27 @@
 
                     <div class="plan-summary">
                         <article>
-                            <span>Games included</span>
+                            <span>Games in build</span>
                             <strong>@FilteredIncludedCount.ToString("N0")</strong>
-                            <small>Saved collection members</small>
+                            <small>Selected games from Collection Builder</small>
                         </article>
 
                         <article>
-                            <span>Total files</span>
-                            <strong>@FilteredIncludedCount.ToString("N0")</strong>
-                            <small>Component files in view</small>
+                            <span>Selected systems</span>
+                            <strong>@SelectedSystemCount.ToString("N0")</strong>
+                            <small>@SelectedSystemsLabel</small>
                         </article>
 
                         <article>
                             <span>Needs Review</span>
-                            <strong>@NeedsReviewCount.ToString("N0")</strong>
-                            <small>Unknown region or language</small>
+                            <strong>@SavedNeedsReviewCount.ToString("N0")</strong>
+                            <small>Items flagged before Build Preview</small>
                         </article>
 
                         <article>
-                            <span>Excluded</span>
-                            <strong>@_selectedGameIds.Count.ToString("N0")</strong>
-                            <small>Selected for removal from plan</small>
+                            <span>Excluded in review</span>
+                            <strong>@SavedExcludedCount.ToString("N0")</strong>
+                            <small>Games left out before this plan was saved</small>
                         </article>
                     </div>
 
@@ -333,10 +334,33 @@
 
     private int IncludedCount => _selected?.Games.Count ?? 0;
     private int FilteredIncludedCount => FilteredGames.Count;
+    private CollectionRuleState SelectedRuleState => CollectionRuleStateJson.Read(_selected?.RuleJson);
+    private int SelectedSystemCount => SelectedRuleState.SelectedSystemKeys.Count > 0
+        ? SelectedRuleState.SelectedSystemKeys.Count
+        : AvailableSystems.Count;
+    private int SavedExcludedCount => SelectedRuleState.ExcludedGameCount;
+    private int SavedNeedsReviewCount => SelectedRuleState.NeedsReviewCount > 0
+        ? SelectedRuleState.NeedsReviewCount
+        : NeedsReviewCount;
     private int NeedsReviewCount => FilteredGames.Count(item =>
         string.IsNullOrWhiteSpace(item.Game.Region) ||
         item.Game.Region.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
         string.IsNullOrWhiteSpace(item.Game.Language));
+    private string WorkflowSummary
+    {
+        get
+        {
+            var state = SelectedRuleState;
+            var workflow = string.IsNullOrWhiteSpace(state.Workflow)
+                ? DisplayCollectionType(_selected?.Type ?? string.Empty)
+                : state.Workflow;
+            var preference = string.IsNullOrWhiteSpace(state.ReleasePreference)
+                ? string.Empty
+                : $" · {state.ReleasePreference}";
+
+            return $"{workflow}{preference} · {SelectedSystemsLabel}";
+        }
+    }
 
     private IReadOnlyList<string> AvailableSystems =>
         _selected?.Games

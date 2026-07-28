@@ -30,10 +30,32 @@ Ask Atlas now gives page-specific help across the main app. The guidance explain
 
 The source archive remains untouched. This release only previews recommendations.
 
+## Milestone 2.12 — The Great UX Refactor
+
+Collection Builder now starts from four collector-facing workflows: 1G1R All Games, 1G1R English Only, Favorites, and Custom. The normal 1G1R flow focuses on collection type, release preference, systems, search, game selection, and Review Build. Atlas profiles, deterministic rule switches, detailed priority editors, and diagnostics remain available through Custom or Custom preference controls instead of appearing in the default path.
+
+Release preferences now use simple presets: English First, USA First, Europe First, Japanese First, and Custom. These presets adjust existing deterministic Atlas options; they do not add scoring or change Atlas into a weighted engine.
+
+The disruptive Inspect action has been replaced by inline "Why this version?" explanations. Atlas still keeps structured decision data internally, while the page translates the selected reasoning into calm collector-facing language and explains that alternate files stay in the library unless selected later.
+
+Needs Review now indicates genuine uncertainty, such as incomplete language or region information or an unresolved tie. Single-game 1G1R groups that Atlas can recommend clearly are no longer presented as needing review merely because there was only one candidate.
+
+Review Build now saves the active checked plan, selected systems, workflow, release preference, excluded count, and needs-review count before navigating to Build Preview. Build Preview displays that working-plan context with destination and frontend details while remaining preview-only.
+
 ### Validation
 
 - Rebuild the PlayBuilder project.
 - Run the application.
+- Confirm Collection Builder shows the four workflows and the selected workflow is visually obvious.
+- Confirm normal 1G1R workflows show release preferences, system selection, game search, game selection, counts, and Review Build without Atlas rule controls.
+- Confirm Custom exposes advanced Atlas controls and diagnostics, while simple workflows do not.
+- Confirm English First, USA First, Europe First, and Japanese First visibly refresh the recommendation plan.
+- Confirm Custom release preference reveals detailed language and region priority controls.
+- Confirm game search changes visible rows without changing selected games.
+- Confirm Recommended, Needs Review, and Excluded summary filters visibly toggle and change the result count.
+- Confirm each recommendation expands inline with collector-friendly "Why this version?" or needs-review wording.
+- Confirm Review Build saves the checked recommendations and opens Build Preview.
+- Confirm Build Preview shows the active workflow, selected systems, selected games, excluded count, needs-review count, destination, and frontend.
 - Open Scan Games from the sidebar and confirm the page loads.
 - Add or update games from the archive, then open Collection Builder.
 - Confirm a scan continues after navigating away from Scan Games and returning.

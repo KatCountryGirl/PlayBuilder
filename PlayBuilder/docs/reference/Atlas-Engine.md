@@ -32,6 +32,8 @@ Distinct discs in a multi-disc set are grouped as required components of the sam
 
 The final decision contains structured reasons describing which rules favored the winner over the runner-up. The Collection Builder displays these reasons without changing the source archive.
 
+Milestone 2.12 adds a UI explanation translator that converts those structured reasons into collector-facing wording such as why a release was chosen, why a game needs review, and what happens to alternate files. This translation layer does not call individual Atlas rules and does not alter deterministic comparison order.
+
 ## Migration
 
 The live `ICollectionRuleService` now resolves to `AtlasCollectionRuleService`. The legacy `CollectionRuleService` remains registered as a concrete service for controlled comparison during the next milestone.

@@ -28,7 +28,12 @@ public static class CollectionRuleStateJson
         }
     }
 
-    public static string Write(IEnumerable<string> selectedSystemKeys)
+    public static string Write(
+        IEnumerable<string> selectedSystemKeys,
+        string workflow = "",
+        string releasePreference = "",
+        int excludedGameCount = 0,
+        int needsReviewCount = 0)
     {
         var state = new CollectionRuleState
         {
@@ -37,7 +42,11 @@ public static class CollectionRuleStateJson
                 .Select(SystemIdentity.CanonicalKey)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                .ToList()
+                .ToList(),
+            Workflow = workflow?.Trim() ?? string.Empty,
+            ReleasePreference = releasePreference?.Trim() ?? string.Empty,
+            ExcludedGameCount = Math.Max(0, excludedGameCount),
+            NeedsReviewCount = Math.Max(0, needsReviewCount)
         };
 
         return JsonSerializer.Serialize(state, JsonOptions);

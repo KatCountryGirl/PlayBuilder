@@ -43,8 +43,8 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
 
             var decision = _decisionEngine.Evaluate(candidates, group.Title, options);
             var metadata = decision.Winner.Metadata;
-            var fallback = metadata.Region.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
-                metadata.PrimaryLanguage.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
+            var needsReviewReason = BuildNeedsReviewReason(decision);
+            var fallback = !string.IsNullOrWhiteSpace(needsReviewReason);
 
             preview.Selections.Add(new GameSelectionPreview
             {
@@ -55,6 +55,7 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
                 RecommendedRegion = metadata.Region,
                 RecommendedLanguage = metadata.PrimaryLanguage,
                 IsFallback = fallback,
+                NeedsReviewReason = needsReviewReason,
                 Reason = BuildSummary(decision, options),
                 DecisionReasons = BuildDecisionReasons(decision),
                 Alternatives = decision.Candidates.Skip(1).Select(candidate => candidate.Metadata.FileName).ToList(),
@@ -107,6 +108,40 @@ public sealed class AtlasCollectionRuleService : ICollectionRuleService
         }
 
         return $"{summary} · Supporting: {string.Join(" · ", decision.SupportingReasons.Select(reason => reason.Description))}";
+    }
+
+    private static string BuildNeedsReviewReason(AtlasDecision decision)
+    {
+        if (decision.Candidates.Count <= 1)
+        {
+            return string.Empty;
+        }
+
+        var winner = decision.Winner.Metadata;
+        var runnerUp = decision.RunnerUp?.Metadata;
+        if (runnerUp is null)
+        {
+            return string.Empty;
+        }
+
+        if (winner.PrimaryLanguage.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+            runnerUp.PrimaryLanguage.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            return "I found more than one possible release, but the language information is incomplete.";
+        }
+
+        if (winner.Region.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+            runnerUp.Region.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            return "I found more than one possible release, but the region information is incomplete.";
+        }
+
+        if (decision.DecidingReason.Rule.Contains("tie", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Two releases looked equally suitable, so I used the filename as the final tie-breaker.";
+        }
+
+        return string.Empty;
     }
 
     private static List<string> BuildDecisionReasons(AtlasDecision decision)

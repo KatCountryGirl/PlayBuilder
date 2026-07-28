@@ -32,6 +32,8 @@ Collection Builder uses `SystemSelectionState` and `SystemIdentity` to keep syst
 
 Recommendation preview rows expose a stable `SelectionKey` composed from system identity, title, and selected file. This prevents duplicate filenames from producing duplicate Blazor render keys and lets Review Build preserve the exact checked recommendation plan.
 
+Collection workflow presets and Atlas explanation translation live in application services rather than individual Razor event handlers. The UI selects collector-facing workflows and release preferences, while `CollectionWorkflowPresets` maps those choices onto existing deterministic `CollectionRuleOptions`. `AtlasExplanationTranslator` turns stored preview and decision data into interface language without calling Atlas rules from the UI.
+
 Favorites remains separate from Library management. Library owns catalog browsing, release inspection, duplicate review, catalog entry removal, and favorite flags. Collections > Favorites uses catalog search plus explicit selected game IDs to save a playable Favorites build plan.
 
 Future quarantine work must preserve the source path below a configured quarantine root, detect collisions, avoid overwrites, and store restoration records. A source such as `/games/Sony/PSP/Game Name.iso` should quarantine under `/quarantine/games/Sony/PSP/Game Name.iso`, not into a flat folder.

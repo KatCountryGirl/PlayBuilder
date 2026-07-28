@@ -5,9 +5,9 @@ namespace PlayBuilder.Services;
 public enum CollectionReviewSummaryFilter
 {
     All,
-    Confident,
+    Recommended,
     NeedsReview,
-    ExtraVersions
+    Excluded
 }
 
 public sealed class CollectionReviewFilters
@@ -15,9 +15,6 @@ public sealed class CollectionReviewFilters
     public string SearchText { get; set; } = string.Empty;
     public string Language { get; set; } = string.Empty;
     public string Region { get; set; } = string.Empty;
-    public bool SelectedOnly { get; set; }
-    public bool ExcludedOnly { get; set; }
-    public bool NeedsReviewOnly { get; set; }
 }
 
 public sealed record CollectionReviewAlternate(
@@ -134,25 +131,11 @@ public sealed class CollectionReviewState
         var rows = _recommendations.AsEnumerable();
         rows = summaryFilter switch
         {
-            CollectionReviewSummaryFilter.Confident => rows.Where(selection => !selection.IsFallback),
+            CollectionReviewSummaryFilter.Recommended => rows.Where(selection => IsSelected(selection) && !selection.IsFallback),
             CollectionReviewSummaryFilter.NeedsReview => rows.Where(selection => selection.IsFallback),
+            CollectionReviewSummaryFilter.Excluded => rows.Where(selection => !IsSelected(selection)),
             _ => rows
         };
-
-        if (filters.NeedsReviewOnly)
-        {
-            rows = rows.Where(selection => selection.IsFallback);
-        }
-
-        if (filters.SelectedOnly)
-        {
-            rows = rows.Where(IsSelected);
-        }
-
-        if (filters.ExcludedOnly)
-        {
-            rows = rows.Where(selection => !IsSelected(selection));
-        }
 
         if (!string.IsNullOrWhiteSpace(filters.Language))
         {

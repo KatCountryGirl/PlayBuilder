@@ -4,6 +4,7 @@
 @inject ICollectionService Collections
 @inject ISettingsService SettingsService
 @inject IAtlasProfileService AtlasProfiles
+@inject AtlasExplanationTranslator ExplanationTranslator
 @inject NavigationManager Navigation
 
 <PageTitle>Collection Builder · PlayBuilder</PageTitle>
@@ -36,18 +37,14 @@
         <section class="collection-type-card">
             <p class="eyebrow">COLLECTION TYPE</p>
             <div class="collection-type-grid">
-                @foreach (var type in CollectionTypes)
+                @foreach (var type in CollectionWorkflowPresets.Workflows)
                 {
-                    <button class="collection-type-option active-@(_collectionType == type.Id)"
+                    <button class="collection-type-option active-@(_workflow == type.Workflow)"
                             type="button"
-                            @onclick="() => SetCollectionTypeAsync(type.Id)">
+                            @onclick="() => SetWorkflowAsync(type.Workflow)">
                         <span aria-hidden="true">@type.Icon</span>
                         <strong>@type.Title</strong>
                         <small>@type.Description</small>
-                        @if (!type.Available)
-                        {
-                            <b>Coming next</b>
-                        }
                     </button>
                 }
             </div>
@@ -95,29 +92,30 @@
             }
         </section>
 
-        @if (_collectionType == "1g1r")
+        @if (IsOneGameOneRomWorkflow)
         {
         <section class="mode-card">
-            <p class="eyebrow">COLLECTION MODE</p>
-            <div class="mode-grid">
-                <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.AllGames)">
-                    <input type="radio" name="collection-mode" value="@OneGameOneRomMode.AllGames"
-                           checked="@(_options.Mode == OneGameOneRomMode.AllGames)"
-                           @onchange="() => SetMode(OneGameOneRomMode.AllGames)" />
-                    <span class="mode-icon" aria-hidden="true">🌎</span>
-                    <span><strong>1G1R — All Games</strong><small>Keep one preferred playable release for every unique game in the selected systems.</small></span>
-                </label>
-                <label class="mode-option active-@(_options.Mode == OneGameOneRomMode.EnglishOnly)">
-                    <input type="radio" name="collection-mode" value="@OneGameOneRomMode.EnglishOnly"
-                           checked="@(_options.Mode == OneGameOneRomMode.EnglishOnly)"
-                           @onchange="() => SetMode(OneGameOneRomMode.EnglishOnly)" />
-                    <span class="mode-icon" aria-hidden="true">🇺🇸</span>
-                    <span><strong>1G1R — English Only</strong><small>Keep one preferred English-capable release for every unique game in the selected systems.</small></span>
-                </label>
+            <p class="eyebrow">RELEASE PREFERENCE</p>
+            <h2>@CurrentWorkflow.Title</h2>
+            <p class="panel-copy">@CurrentWorkflow.Description</p>
+            <div class="mode-grid release-preference-grid">
+                @foreach (var preference in CollectionWorkflowPresets.ReleasePreferences)
+                {
+                    <label class="mode-option active-@(_releasePreference == preference.Preset)">
+                        <input type="radio"
+                               name="release-preference"
+                               checked="@(_releasePreference == preference.Preset)"
+                               @onchange="() => SetReleasePreference(preference.Preset)" />
+                        <span class="mode-icon" aria-hidden="true">@ReleasePreferenceIcon(preference.Preset)</span>
+                        <span><strong>@preference.Title</strong><small>@preference.Description</small></span>
+                    </label>
+                }
             </div>
         </section>
 
-        <details class="advanced-options">
+        @if (ShowAdvancedAtlasControls)
+        {
+        <details class="advanced-options" open="@(_workflow == CollectionWorkflow.Custom)">
             <summary>
                 <span>Advanced Options</span>
                 <small>Profiles and saved expert preferences</small>
@@ -156,8 +154,11 @@
             </div>
         </section>
         </details>
+        }
 
-        <section class="rule-layout">
+        <section class="@RuleLayoutClass">
+            @if (ShowCustomPriorityControls)
+            {
             <aside class="rules-panel">
                 <section class="priority-section">
                     <p class="eyebrow">LANGUAGE PREFERENCE</p>
@@ -205,12 +206,8 @@
                     </ol>
                 </section>
 
-                <div class="preset-actions">
-                    <button type="button" class="preset-button" @onclick="UseEnglishPreset">English first</button>
-                    <button type="button" class="preset-button" @onclick="UseJapanesePreset">Japanese first</button>
-                    <button type="button" class="preset-button" @onclick="UseEuropeanPreset">Europe first</button>
-                </div>
-
+                @if (ShowAdvancedAtlasControls)
+                {
                 <details class="advanced-options rules-advanced">
                     <summary>
                         <span>Advanced Options</span>
@@ -255,32 +252,36 @@
                     <article><span>Final recommendations</span><strong>@_preview.Diagnostics.FinalRecommendations.ToString("N0")</strong></article>
                 </section>
                 </details>
+                }
             </aside>
+            }
 
             <section class="preview-panel">
                 <div class="preview-heading">
                     <div>
-                        <p class="eyebrow">LIVE RECOMMENDATIONS · @_preview.EngineName</p>
-                        <h2>What PlayBuilder would keep</h2>
+                        <p class="eyebrow">BUILD PLAN · @CurrentWorkflow.Title</p>
+                        <h2>Choose the games for this collection</h2>
                     </div>
-                    <span class="preview-count">@_review.SelectedCount.ToString("N0") selected · @_review.ExcludedCount.ToString("N0") excluded</span>
+                    <span class="preview-count">Showing: @DisplayedSelections.Count.ToString("N0") games · Selected: @_review.SelectedCount.ToString("N0") games</span>
                 </div>
 
                 <div class="summary-grid">
-                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.Confident)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.Confident)"><span>Confident choices</span><strong>@_preview.ConfidentSelections.ToString("N0")</strong><small>Language and region identified</small></button>
-                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.NeedsReview)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.NeedsReview)"><span>Needs review</span><strong>@_preview.FallbackSelections.ToString("N0")</strong><small>Unknown language or region</small></button>
-                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.ExtraVersions)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.ExtraVersions)"><span>Extra versions</span><strong>@_preview.AlternativesExcluded.ToString("N0")</strong><small>Alternate game files not selected</small></button>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.Recommended)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.Recommended)"><span>Recommended</span><strong>@RecommendedCount.ToString("N0")</strong><small>Selected games ready for Build Preview</small></button>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.NeedsReview)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.NeedsReview)"><span>Needs Review</span><strong>@NeedsReviewCount.ToString("N0")</strong><small>Games where Atlas wants your opinion</small></button>
+                    <button type="button" class="@SummaryFilterClass(CollectionReviewSummaryFilter.Excluded)" @onclick="() => ToggleSummaryFilter(CollectionReviewSummaryFilter.Excluded)"><span>Excluded</span><strong>@_review.ExcludedCount.ToString("N0")</strong><small>Not part of this build plan; files stay in your library</small></button>
                     @if (_options.Mode == OneGameOneRomMode.EnglishOnly)
                     {
-                        <article><span>No English release</span><strong>@_preview.GroupsExcludedByLanguage.ToString("N0")</strong><small>Excluded by English-only mode</small></article>
+                        <article><span>No English release</span><strong>@_preview.GroupsExcludedByLanguage.ToString("N0")</strong><small>Atlas excluded these from this collection, but they remain in your library.</small></article>
                     }
                 </div>
 
                 <section class="review-controls" aria-label="Recommendation filters and selection controls">
                     <label class="search-box">
-                        Search
+                        Search games
                         <input @bind="_filters.SearchText" @bind:event="oninput" placeholder="Title, filename, or system" />
                     </label>
+                    @if (ShowAdvancedAtlasControls)
+                    {
                     <label>
                         Language
                         <select value="@_filters.Language" @onchange="args => _filters.Language = args.Value?.ToString() ?? string.Empty">
@@ -301,16 +302,14 @@
                             }
                         </select>
                     </label>
-                    <label class="compact-check"><input type="checkbox" checked="@_filters.SelectedOnly" @onchange="args => _filters.SelectedOnly = args.Value is bool value && value" /> Selected only</label>
-                    <label class="compact-check"><input type="checkbox" checked="@_filters.ExcludedOnly" @onchange="args => _filters.ExcludedOnly = args.Value is bool value && value" /> Excluded only</label>
-                    <label class="compact-check"><input type="checkbox" checked="@_filters.NeedsReviewOnly" @onchange="args => _filters.NeedsReviewOnly = args.Value is bool value && value" /> Needs review only</label>
+                    }
                 </section>
 
                 <section class="selection-actions" aria-label="Recommendation selection actions">
-                    <button type="button" @onclick="SelectDisplayedRecommendations">Select All</button>
-                    <button type="button" @onclick="SelectNoDisplayedRecommendations">Select None</button>
-                    <button type="button" @onclick="InvertDisplayedRecommendations">Invert Selection</button>
-                    <button type="button" @onclick="ResetRecommendations">Reset to Atlas Recommendations</button>
+                    <button type="button" @onclick="SelectDisplayedRecommendations">Select visible games</button>
+                    <button type="button" @onclick="SelectNoDisplayedRecommendations">Exclude visible games</button>
+                    <button type="button" @onclick="InvertDisplayedRecommendations">Invert visible games</button>
+                    <button type="button" @onclick="ResetRecommendations">Reset to Atlas recommendations</button>
                     <button type="button" class="primary" disabled="@(_isSavingOneGameOneRom || _review.SelectedCount == 0)" @onclick="SaveOneGameOneRomAsync">@(_isSavingOneGameOneRom ? "Saving..." : "Review Build")</button>
                 </section>
 
@@ -329,26 +328,6 @@
                 }
                 else
                 {
-                    @if (ShowingAlternates)
-                    {
-                        <div class="alternate-list">
-                            @foreach (var alternate in DisplayedAlternates.Take(80))
-                            {
-                                <article class="alternate-card" @key="AlternateKey(alternate)">
-                                    <span>@alternate.Title</span>
-                                    <strong>@alternate.AlternateFilename</strong>
-                                    <small>Winner: @alternate.SelectedWinner</small>
-                                    <p>@alternate.Reason</p>
-                                    @if (alternate.Selection.AtlasInspection is not null)
-                                    {
-                                        <button type="button" class="inspect-button" @onclick="() => InspectSelection(alternate.Selection)">Inspect</button>
-                                    }
-                                </article>
-                            }
-                        </div>
-                    }
-                    else
-                    {
                     <div class="selection-list">
                         @foreach (var selection in DisplayedSelections.Take(80))
                         {
@@ -365,32 +344,14 @@
                                     <div class="choice-pills">
                                         <span class="region-pill">@selection.RecommendedLanguage</span>
                                         <span class="region-pill">@selection.RecommendedRegion</span>
-                                        @if (selection.AtlasInspection is not null)
-                                        {
-                                            <button type="button"
-                                                    class="inspect-button"
-                                                    @onclick:stopPropagation="true"
-                                                    @onclick:preventDefault="true"
-                                                    @onclick="() => InspectSelection(selection)">
-                                                Inspect
-                                            </button>
-                                        }
                                     </div>
                                 </summary>
-                                <div class="alternatives">
-                                    @if (selection.DecisionReasons.Count > 0)
-                                    {
-                                        <p><strong>@(selection.IsFallback ? "Why this needs review:" : "Why Atlas selected this game file:")</strong></p>
-                                        <ul>
-                                            @foreach (var reason in selection.DecisionReasons)
-                                            {
-                                                <li>@reason</li>
-                                            }
-                                        </ul>
-                                    }
-                                    <p>Other copies that remain untouched in the original archive:</p>
+                                <div class="selection-explanation">
+                                    <p><strong>@(selection.IsFallback ? "Why this needs review:" : "Why this version?")</strong></p>
+                                    <p>@(selection.IsFallback ? ExplanationTranslator.ExplainNeedsReview(selection) : ExplanationTranslator.ExplainRecommendation(selection, _releasePreference))</p>
+                                    <p>Other game files stay in your library unless you choose them later:</p>
                                     <ul>
-                                        @foreach (var alternative in selection.Alternatives)
+                                        @foreach (var alternative in ExplanationTranslator.ExplainAlternatives(selection))
                                         {
                                             <li>@alternative</li>
                                         }
@@ -399,21 +360,16 @@
                             </details>
                         }
                     </div>
-                    }
 
-                    @if (!ShowingAlternates && DisplayedSelections.Count > 80)
+                    @if (DisplayedSelections.Count > 80)
                     {
                         <p class="more-results">Showing the first 80 matching recommendations of @DisplayedSelections.Count.ToString("N0").</p>
-                    }
-                    else if (ShowingAlternates && DisplayedAlternates.Count > 80)
-                    {
-                        <p class="more-results">Showing the first 80 alternate game files of @DisplayedAlternates.Count.ToString("N0").</p>
                     }
                 }
             </section>
         </section>
         }
-        else if (_collectionType == "favorites")
+        else if (_workflow == CollectionWorkflow.Favorites)
         {
             <section class="favorites-builder">
                 <div class="favorites-copy">
@@ -481,101 +437,6 @@
                 }
             </section>
         }
-        else
-        {
-            <section class="collection-placeholder">
-                <div class="state-icon" aria-hidden="true">✨</div>
-                <p class="eyebrow">COMING NEXT</p>
-                <h2>@CurrentCollectionType.Title</h2>
-                <p>@CurrentCollectionType.LongDescription</p>
-                <span>The shared collection engine is ready for this rule type next.</span>
-            </section>
-        }
-
-        @if (_inspectedSelection?.AtlasInspection is { } inspection)
-        {
-            <div class="inspector-backdrop" role="presentation" @onclick="CloseInspector"></div>
-            <aside class="atlas-inspector" role="dialog" aria-modal="true" aria-labelledby="atlas-inspector-title">
-                <header class="inspector-header">
-                    <div>
-                        <p class="eyebrow">ATLAS INSPECTOR</p>
-                        <h2 id="atlas-inspector-title">@_inspectedSelection.Title</h2>
-                    </div>
-                    <button type="button" class="inspector-close" aria-label="Close inspector" @onclick="CloseInspector">×</button>
-                </header>
-
-                <section class="inspector-summary" aria-label="Atlas decision summary">
-                    <article>
-                        <span>Winning game file</span>
-                        <strong>@inspection.WinningRom</strong>
-                    </article>
-                    <article>
-                        <span>Runner-up</span>
-                        <strong>@inspection.RunnerUp</strong>
-                    </article>
-                    <article>
-                        <span>Deciding rule</span>
-                        <strong>@inspection.DecidingRule</strong>
-                        <small>@inspection.DecidingRuleDescription</small>
-                    </article>
-                </section>
-
-                <section class="inspector-section">
-                    <div class="inspector-section-heading">
-                        <h3>Supporting rules</h3>
-                        <span>@inspection.SupportingRules.Count</span>
-                    </div>
-                    @if (inspection.SupportingRules.Count == 0)
-                    {
-                        <p class="inspector-empty">No later rules also favored the winner.</p>
-                    }
-                    else
-                    {
-                        <ul class="supporting-rule-list">
-                            @foreach (var rule in inspection.SupportingRules)
-                            {
-                                <li>@rule</li>
-                            }
-                        </ul>
-                    }
-                </section>
-
-                <section class="inspector-section">
-                    <div class="inspector-section-heading">
-                        <h3>Ordered candidates</h3>
-                        <span>@inspection.Candidates.Count</span>
-                    </div>
-                    <div class="candidate-inspection-list">
-                        @foreach (var candidate in inspection.Candidates)
-                        {
-                            <article class="candidate-inspection-card winner-@candidate.IsWinner.ToString().ToLowerInvariant() runner-@candidate.IsRunnerUp.ToString().ToLowerInvariant()">
-                                <header>
-                                    <span class="candidate-rank">#@candidate.Order</span>
-                                    <strong>@candidate.FileName</strong>
-                                    @if (candidate.IsWinner)
-                                    {
-                                        <b>Winner</b>
-                                    }
-                                    else if (candidate.IsRunnerUp)
-                                    {
-                                        <b>Runner-up</b>
-                                    }
-                                </header>
-                                <dl>
-                                    <div><dt>Region</dt><dd>@candidate.Region</dd></div>
-                                    <div><dt>Language(s)</dt><dd>@string.Join(", ", candidate.Languages)</dd></div>
-                                    <div><dt>Dump quality</dt><dd>@candidate.DumpQuality</dd></div>
-                                    <div><dt>Revision</dt><dd>@candidate.Revision</dd></div>
-                                    <div><dt>Version</dt><dd>@candidate.Version</dd></div>
-                                    <div><dt>Release type</dt><dd>@candidate.ReleaseType</dd></div>
-                                </dl>
-                            </article>
-                        }
-                    </div>
-                </section>
-            </aside>
-        }
-
         <footer class="version-label">Atlas Development Preview · v0.0.9</footer>
     }
 </main>
@@ -588,21 +449,8 @@
     private const string RevisionRuleName = "Revision";
     private const string VersionRuleName = "Version";
 
-    private string _collectionType = "1g1r";
-
-    private static readonly CollectionTypeOption[] CollectionTypes =
-    [
-        new("1g1r", "🏆", "1G1R", "One best release per game", "Choose the best language, region, and revision for every unique game.", true),
-        new("favorites", "💜", "Favorites", "A personal must-play library", "Mark favorite games and build a focused collection that is easy to browse.", true),
-        new("top", "⭐", "Top Games", "Choose a Top 25, 50, 100, or more", "Create ranked collections by system, genre, rating, or your own preferred number.", false),
-        new("genres", "🎭", "Genres", "Action, RPG, puzzle, racing, and more", "Build one or more collections around genres and subgenres.", false),
-        new("series", "📚", "Series", "Keep game franchises together", "Group related games such as Mario, Zelda, Final Fantasy, or custom series.", false),
-        new("custom", "🧩", "Custom", "Mix rules and hand-picked games", "Combine filters, exclusions, favorites, and manual selections into your own collection.", false)
-    ];
-
-    private CollectionTypeOption CurrentCollectionType =>
-        CollectionTypes.First(type => type.Id == _collectionType);
-
+    private CollectionWorkflow _workflow = CollectionWorkflow.OneGameOneRomAllGames;
+    private ReleasePreferencePreset _releasePreference = ReleasePreferencePreset.EnglishFirst;
     private bool _isLoading = true;
     private ArchiveScanResult? _scan;
     private CollectionRuleOptions _options = new();
@@ -625,7 +473,6 @@
     private readonly HashSet<int> _selectedFavoriteGameIds = [];
     private bool _isSavingOneGameOneRom;
     private string _oneGameOneRomMessage = string.Empty;
-    private GameSelectionPreview? _inspectedSelection;
     private CollectionReviewState _review = new();
     private CollectionReviewFilters _filters = new();
     private CollectionReviewSummaryFilter _summaryFilter = CollectionReviewSummaryFilter.All;
@@ -634,9 +481,6 @@
 
     private IReadOnlyList<GameSelectionPreview> DisplayedSelections =>
         _review.Filter(_filters, _summaryFilter);
-
-    private IReadOnlyList<CollectionReviewAlternate> DisplayedAlternates =>
-        _review.GetAlternates(_filters);
 
     private IReadOnlyList<string> AvailableLanguages =>
         _preview.Selections
@@ -654,7 +498,31 @@
             .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    private bool ShowingAlternates => _summaryFilter == CollectionReviewSummaryFilter.ExtraVersions;
+    private int RecommendedCount =>
+        _preview.Selections.Count(selection => _review.IsSelected(selection) && !selection.IsFallback);
+
+    private int NeedsReviewCount =>
+        _preview.Selections.Count(selection => selection.IsFallback);
+
+    private CollectionWorkflowOption CurrentWorkflow =>
+        CollectionWorkflowPresets.Workflows.First(type => type.Workflow == _workflow);
+
+    private bool IsOneGameOneRomWorkflow =>
+        _workflow is CollectionWorkflow.OneGameOneRomAllGames or CollectionWorkflow.OneGameOneRomEnglishOnly or CollectionWorkflow.Custom;
+
+    private bool ShowCustomPriorityControls =>
+        _workflow == CollectionWorkflow.Custom || _releasePreference == ReleasePreferencePreset.Custom;
+
+    private bool ShowAdvancedAtlasControls =>
+        _workflow == CollectionWorkflow.Custom;
+
+    private string RuleLayoutClass =>
+        ShowCustomPriorityControls ? "rule-layout" : "rule-layout simple";
+
+    private string ReleasePreferenceLabel =>
+        CollectionWorkflowPresets.ReleasePreferences
+            .First(preference => preference.Preset == _releasePreference)
+            .Title;
 
     private IReadOnlyList<CatalogSystemSummary> FilteredCatalogSystems =>
         _systemSelection.FilteredSystems;
@@ -726,7 +594,8 @@
                 _favoritesDestination,
                 _frontend,
                 _systemSelection.SelectedSystemKeys,
-                _selectedFavoriteGameIds);
+                _selectedFavoriteGameIds,
+                CurrentWorkflow.Title);
             _favoritesMessage = $"Saved {collection.Games.Count:N0} games. Opening Build Preview...";
             Navigation.NavigateTo($"/build?collection={collection.Id}");
         }
@@ -756,7 +625,6 @@
             _preview = CollectionRuleService.BuildPreview(BuildScopedScan(_scan), _options);
             _review = new CollectionReviewState();
             _review.LoadRecommendations(_preview.Selections);
-            _inspectedSelection = null;
             _summaryFilter = CollectionReviewSummaryFilter.All;
             _filters = new CollectionReviewFilters();
         }
@@ -781,7 +649,9 @@
                 return;
             }
 
-            var name = _options.Mode == OneGameOneRomMode.EnglishOnly
+            var name = _workflow == CollectionWorkflow.Custom
+                ? "Custom Collection"
+                : _options.Mode == OneGameOneRomMode.EnglishOnly
                 ? "1G1R - English Only"
                 : "1G1R - All Games";
             var destination = Path.Combine(_libraryPath, name);
@@ -790,7 +660,11 @@
                 destination,
                 _frontend,
                 selected,
-                _systemSelection.SelectedSystemKeys);
+                _systemSelection.SelectedSystemKeys,
+                CurrentWorkflow.Title,
+                ReleasePreferenceLabel,
+                _review.ExcludedCount,
+                NeedsReviewCount);
 
             _oneGameOneRomMessage = $"Saved {collection.Games.Count:N0} selected games. Opening Build Preview...";
             Navigation.NavigateTo($"/build?collection={collection.Id}");
@@ -818,15 +692,6 @@
     private void InvertDisplayedRecommendations() => _review.InvertSelection(DisplayedSelections.ToList());
 
     private void ResetRecommendations() => _review.ResetToAtlasRecommendations();
-
-    private async Task SetCollectionTypeAsync(string typeId)
-    {
-        _collectionType = typeId;
-        if (_collectionType == "favorites")
-        {
-            await RefreshFavoriteResultsAsync();
-        }
-    }
 
     private void SelectAllSystemKeys()
     {
@@ -871,7 +736,7 @@
     private async Task RefreshAfterSystemSelectionAsync()
     {
         RefreshPreview();
-        if (_collectionType == "favorites")
+        if (_workflow == CollectionWorkflow.Favorites)
         {
             await RefreshFavoriteResultsAsync();
         }
@@ -972,9 +837,6 @@
         _favoritesSearchMessage = $"Removed favorite flags from {changed:N0} selected games.";
     }
 
-    private static string AlternateKey(CollectionReviewAlternate alternate) =>
-        $"{alternate.Selection.SelectionKey}|{alternate.AlternateFilename}";
-
     private static string SystemMediaIcon(CatalogSystemSummary system) =>
         SystemIdentity.ResolveMediaType(system.Name, system.SystemKey) switch
         {
@@ -995,21 +857,44 @@
     private string SummaryFilterClass(CollectionReviewSummaryFilter filter) =>
         _summaryFilter == filter ? "active" : string.Empty;
 
-    private void InspectSelection(GameSelectionPreview selection)
+    private async Task SetWorkflowAsync(CollectionWorkflow workflow)
     {
-        _inspectedSelection = selection.AtlasInspection is null ? null : selection;
+        _workflow = workflow;
+        CollectionWorkflowPresets.ApplyWorkflow(_options, workflow);
+
+        if (workflow == CollectionWorkflow.Custom)
+        {
+            _releasePreference = ReleasePreferencePreset.Custom;
+        }
+
+        if (_releasePreference != ReleasePreferencePreset.Custom)
+        {
+            CollectionWorkflowPresets.ApplyReleasePreference(_options, _releasePreference);
+        }
+
+        RefreshPreview();
+        if (workflow == CollectionWorkflow.Favorites)
+        {
+            await RefreshFavoriteResultsAsync();
+        }
     }
 
-    private void CloseInspector()
+    private void SetReleasePreference(ReleasePreferencePreset preset)
     {
-        _inspectedSelection = null;
-    }
-
-    private void SetMode(OneGameOneRomMode mode)
-    {
-        _options.Mode = mode;
+        _releasePreference = preset;
+        CollectionWorkflowPresets.ApplyReleasePreference(_options, preset);
         RefreshPreview();
     }
+
+    private static string ReleasePreferenceIcon(ReleasePreferencePreset preset) =>
+        preset switch
+        {
+            ReleasePreferencePreset.EnglishFirst => "EN",
+            ReleasePreferencePreset.UsaFirst => "US",
+            ReleasePreferencePreset.EuropeFirst => "EU",
+            ReleasePreferencePreset.JapaneseFirst => "JP",
+            _ => "..."
+        };
 
     private async Task ChangeActiveProfileAsync(ChangeEventArgs args)
     {
@@ -1158,27 +1043,6 @@
         RefreshPreview();
     }
 
-    private void UseEnglishPreset()
-    {
-        _options.LanguagePriority = ["English", "Japanese", "French", "German", "Spanish", "Italian", "Portuguese", "Korean", "Dutch", "Swedish", "Unknown"];
-        _options.RegionPriority = ["USA", "World", "Europe", "Australia", "United Kingdom", "Canada", "Japan", "Korea", "Brazil", "France", "Germany", "Spain", "Italy", "Unknown"];
-        RefreshPreview();
-    }
-
-    private void UseJapanesePreset()
-    {
-        _options.LanguagePriority = ["Japanese", "English", "Korean", "French", "German", "Spanish", "Italian", "Portuguese", "Dutch", "Swedish", "Unknown"];
-        _options.RegionPriority = ["Japan", "World", "USA", "Europe", "Korea", "Australia", "United Kingdom", "Canada", "Brazil", "France", "Germany", "Spain", "Italy", "Unknown"];
-        RefreshPreview();
-    }
-
-    private void UseEuropeanPreset()
-    {
-        _options.LanguagePriority = ["English", "French", "German", "Spanish", "Italian", "Portuguese", "Dutch", "Swedish", "Japanese", "Korean", "Unknown"];
-        _options.RegionPriority = ["Europe", "United Kingdom", "World", "Australia", "USA", "Canada", "France", "Germany", "Spain", "Italy", "Japan", "Korea", "Brazil", "Unknown"];
-        RefreshPreview();
-    }
-
     private string NextProfileName(string baseName)
     {
         var existingNames = _profiles.Profiles
@@ -1203,5 +1067,4 @@
     private static string NormalizeProfileName(string value) =>
         string.IsNullOrWhiteSpace(value) ? "Personal" : value.Trim();
 
-    private sealed record CollectionTypeOption(string Id, string Icon, string Title, string Description, string LongDescription, bool Available);
 }
